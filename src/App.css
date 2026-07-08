@@ -727,3 +727,114 @@ ul,ol{list-style:none}
   .mobile-nav{display:block}
   .main-scroll{padding-bottom:56px}
 }
+
+/* ===== RESPONSIVE: TABLET ===== */
+@media(min-width:601px) and (max-width:900px){
+  .main-content{padding:28px 28px 140px}
+  .hero-card{padding:28px}
+  .daily-grid{grid-template-columns:repeat(2,1fr)}
+  .feature-cards{grid-template-columns:repeat(2,1fr)}
+  .track-row{grid-template-columns:32px 1fr 70px 36px}
+  .track-list-header{grid-template-columns:32px 1fr 70px 36px}
+  .settings-grid{grid-template-columns:repeat(2,1fr)}
+  .player{width:min(85vw,720px)}
+  .np-art{width:min(300px,70vw)}
+}
+
+/* ===== RESPONSIVE: MOBILE ===== */
+@media(max-width:600px){
+  .main-content{padding:16px 14px 120px}
+  .page-title{font-size:24px}
+  .hero-card-title{font-size:24px}
+  .hero-card{padding:20px;min-height:auto}
+  .daily-grid{gap:12px}
+  .daily-card-art{height:140px}
+  .track-row{grid-template-columns:28px 1fr 60px;gap:8px;padding:6px 8px}
+  .track-list-header{grid-template-columns:28px 1fr 60px;gap:8px;padding:0 8px 6px}
+  .track-list-header span:last-child{display:none}
+  .track-duration{font-size:11px}
+  .track-action{display:none}
+  .player{padding:8px 12px;bottom:12px;width:min(95vw,720px)}
+  .player-center{display:none}
+  .player-thumb{width:44px;height:44px}
+  .np-controls{gap:14px}
+  .np-ctrl-main{width:48px;height:48px}
+  .premium-title{font-size:20px}
+  .eq-panel{padding:16px}
+  .cat-header-name{font-size:24px}
+  .cat-header-art{width:100px;height:100px;font-size:40px}
+  .ai-page-title{font-size:24px}
+  .ai-input-card{padding:16px}
+  .settings-card{padding:16px}
+  .profile-card{padding:16px}
+  .greeting{font-size:12px;padding:5px 12px 5px 8px}
+  .section-title{font-size:18px}
+  .lib-tab{padding:6px 12px;font-size:12px}
+  .lib-item{padding:10px 12px}
+  .lib-item-icon{width:36px;height:36px;font-size:14px}
+  .tag{padding:6px 12px;font-size:12px}
+  .hero-tracks{gap:6px}
+  .hero-track{min-width:140px;padding:5px 8px}
+  .hero-track-icon{width:28px;height:28px}
+  .daily-card-body{padding:12px}
+  .daily-card-name{font-size:14px}
+  .daily-card-desc{font-size:11px}
+  .daily-card-btns{gap:8px}
+  .daily-card-btn{padding:6px 12px;font-size:11px}
+}
+
+/* ===== RESPONSIVE: VERY SMALL ===== */
+@media(max-width:380px){
+  .main-content{padding:12px 10px 110px}
+  .page-title{font-size:20px}
+  .hero-card-title{font-size:20px}
+  .hero-card{padding:16px}
+  .hero-card-desc{font-size:12px}
+  .hero-btn{padding:8px 16px;font-size:12px}
+  .daily-grid{gap:10px}
+  .daily-card-art{height:120px}
+  .track-row{grid-template-columns:24px 1fr 50px;gap:6px;padding:5px 6px}
+  .track-list-header{grid-template-columns:24px 1fr 50px;gap:6px;padding:0 6px 4px}
+  .track-thumb{width:32px;height:32px;font-size:14px}
+  .track-title{font-size:12px}
+  .track-author{font-size:11px}
+  .player{padding:6px 10px;bottom:8px}
+  .player-thumb{width:40px;height:40px;border-radius:8px}
+  .player-track-title{font-size:12px}
+  .player-track-author{font-size:11px}
+  .player-btn-play{width:32px;height:32px}
+  .mobile-nav-item{font-size:9px;padding:4px 8px}
+  .mobile-nav-item svg{width:18px;height:18px}
+}
+
+/* ===== TOUCH OPTIMIZATIONS ===== */
+@media(hover:none) and (pointer:coarse){
+  .track-row{padding:10px 8px}
+  .track-action{opacity:1}
+  .hero-track-play{opacity:1}
+  .daily-card-play{opacity:1;transform:translateY(0)}
+  .ctx-item{padding:12px}
+  .sidebar-nav-item{padding:12px}
+  .lib-tab{padding:8px 16px}
+  .tag{padding:8px 16px}
+  .player-btn{width:36px;height:36px}
+  .player-expand{width:32px;height:32px}
+}
+
+/* ===== SAFE AREA (notch devices) ===== */
+@supports(padding:env(safe-area-inset-bottom)){
+  .mobile-nav{padding-bottom:env(safe-area-inset-bottom)}
+  .player{bottom:calc(12px + env(safe-area-inset-bottom))}
+}
+
+/* ===== LANDSCAPE MOBILE ===== */
+@media(max-height:500px) and (orientation:landscape){
+  .main-content{padding:12px 20px 80px}
+  .hero-card{min-height:auto;padding:16px}
+  .hero-card-art{display:none}
+  .np-art{width:min(200px,40vh);margin:10px 0 16px}
+  .np-info{margin-bottom:12px}
+  .np-controls{margin-bottom:16px}
+  .np-volume{margin-bottom:16px}
+  .player{bottom:8px;padding:6px 12px}
+}
