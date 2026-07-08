@@ -5,6 +5,7 @@ import TiltSpotlightCard from './components/effects/TiltSpotlightCard'
 import CursorGlow from './components/effects/CursorGlow'
 import NatureBackground from './components/effects/NatureBackground'
 import { t, type Lang } from './i18n'
+import AdminPage from './pages/AdminPage'
 import './App.css'
 
 /* ─── SVG Icons ─── */
@@ -353,6 +354,7 @@ export default function App() {
           <div className="sidebar-pin-label">{T('pinned')}</div>
           <nav className="sidebar-nav">
             <button className={`sidebar-nav-item ${page==='favorites'?'active':''}`} onClick={() => goto('favorites')}>{Ico.heart} {T('nav_favorites')}</button>
+            <button className={`sidebar-nav-item ${page==='admin'?'active':''}`} onClick={() => goto('admin')}>{Ico.upload} Админ</button>
           </nav>
         </div>
 
@@ -361,7 +363,9 @@ export default function App() {
       {/* ─── Main ─── */}
       <div className="main-area">
         <div className="main-scroll" ref={scrollRef}>
-          <div className="main-content">
+          {/* Admin page - full screen, no sidebar */}
+          {page === 'admin' && <AdminPage />}
+          <div className="main-content" style={page === 'admin' ? {display:'none'} : {}}>
 
             {/* ═══ HOME ═══ */}
             {page === 'home' && !activeCategory && (
