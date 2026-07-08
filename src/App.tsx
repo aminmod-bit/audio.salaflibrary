@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { categories, audioData } from './data'
-import type { AudioTrack, Category, Speaker } from './data'
+import { categories, lectures } from './data'
+import type { Lecture, Category, Scholar } from './data'
 import TiltSpotlightCard from './components/effects/TiltSpotlightCard'
 import CursorGlow from './components/effects/CursorGlow'
 import NatureBackground from './components/effects/NatureBackground'
@@ -87,13 +87,13 @@ function getSpeakerGradient(id: string): string {
   return gradients[id] || 'linear-gradient(135deg, #333, #555)'
 }
 
-type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'ai-playlist' | 'rooms' | 'daily-playlist' | 'speakers' | 'speaker'
+type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'playlists' | 'rooms' | 'daily-playlist' | 'scholars' | 'scholar' | 'admin'
 
 /* ─── App ─── */
 export default function App() {
   const [page, setPage] = useState<Page>('home')
   const [activeCategory, setActiveCategory] = useState<Category | null>(null)
-  const [currentTrack, setCurrentTrack] = useState<AudioTrack | null>(null)
+  const [currentLecture, setCurrentLecture] = useState<Lecture | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
@@ -101,7 +101,7 @@ export default function App() {
   const [muted, setMuted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [queueOpen, setQueueOpen] = useState(false)
-  const [queue, setQueue] = useState<AudioTrack[]>([])
+  const [queue, setQueue] = useState<Lecture[]>([])
   const [nowPlaying, setNowPlaying] = useState(false)
   const [liked, setLiked] = useState<Set<string | number>>(new Set())
   const [libTab, setLibTab] = useState<'playlists'|'albums'|'artists'|'downloaded'>('playlists')
@@ -120,10 +120,10 @@ export default function App() {
     return 'ru'
   })
   const [selectedDailyPlaylist, setSelectedDailyPlaylist] = useState<number | null>(null)
-  const [speakers, setSpeakers] = useState<Speaker[]>([])
-  const [selectedSpeaker, setSelectedSpeaker] = useState<Speaker | null>(null)
-  const [speakerSearch, setSpeakerSearch] = useState('')
-  const [speakerRoleFilter, setSpeakerRoleFilter] = useState<string>('all')
+  const [scholars, setScholars] = useState<Scholar[]>([])
+  const [selectedScholar, setselectedScholar] = useState<Scholar | null>(null)
+  const [scholarSearch, setScholarSearch] = useState('')
+  const [scholarRoleFilter, setScholarRoleFilter] = useState<string>('all')
   const scrollRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -144,30 +144,30 @@ export default function App() {
   }, [currentTheme])
 
   useEffect(() => {
-    fetch('/data/speakers.json').then(r => r.json()).then((data: Speaker[]) => setSpeakers(data)).catch(() => {})
+    fetch('/data/scholars.json').then(r => r.json()).then((data: Scholar[]) => setScholars(data)).catch(() => {})
   }, [])
 
-  const trackBg = (t: AudioTrack) => categories.find(c => c.id === t.categoryId)?.gradient || 'linear-gradient(135deg,#333,#555)'
+  const trackBg = (t: Lecture) => categories.find(c => c.id === t.categoryId)?.gradient || 'linear-gradient(135deg,#333,#555)'
   const catBg = (c: Category) => c.gradient
 
   const dailyPlaylists = [
-    { name:'Знакомое', desc:'Любимые артисты и близкие к ним новинки', icon:'📖', gradient: catBg(categories[0]), tracks: audioData.slice(0,8) },
-    { name:'Открытия', desc:'То, что ты ещё не слышал, но точно зайдёт', icon:'📝', gradient: catBg(categories[1]), tracks: audioData.slice(10,18) },
-    { name:'Под настроение', desc:'Подобрано под твой обычный вайб', icon:'🎶', gradient: catBg(categories[2]), tracks: audioData.slice(0,3) },
+    { name:'Знакомое', desc:'Любимые лекторы и близкие к ним новинки', icon:'📖', gradient: catBg(categories[0]), lectures: lectures.slice(0,8) },
+    { name:'Открытия', desc:'То, что ты ещё не слышал, но точно зайдёт', icon:'📝', gradient: catBg(categories[1]), lectures: lectures.slice(0,3) },
+    { name:'Под настроение', desc:'Подобрано под твой обычный вайб', icon:'🎶', gradient: catBg(categories[2]), lectures: lectures.slice(0,3) },
   ]
 
   const goto = (p: Page) => { setPage(p); setNowPlaying(false); scrollRef.current?.scrollTo(0,0) }
   const T = (key: string) => t(lang as Lang, key)
 
-  const filteredTracks = searchQuery.trim()
-    ? audioData.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.author.toLowerCase().includes(searchQuery.toLowerCase()))
-    : audioData
+  const filteredLectures = searchQuery.trim()
+    ? lectures.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.scholar.toLowerCase().includes(searchQuery.toLowerCase()))
+    : lectures
 
   const toggleLike = (id: string | number) => setLiked(prev => { const n = new Set(prev); if (n.has(id)) { n.delete(id) } else { n.add(id) }; return n })
 
   /* ─── Playback ─── */
-  const playTrack = useCallback((track: AudioTrack, list?: AudioTrack[]) => {
-    if (currentTrack?.id === track.id) {
+  const playLecture = useCallback((lecture: Lecture, list?: Lecture[]) => {
+    if (currentLecture?.id === lecture.id) {
       // Toggle play/pause
       if (audioRef.current) {
         if (audioRef.current.paused) { audioRef.current.play(); setIsPlaying(true) }
@@ -175,35 +175,35 @@ export default function App() {
       }
       return
     }
-    setCurrentTrack(track); setIsPlaying(true); setProgress(0); setCurrentTime(0)
-    const tracks = list || filteredTracks
-    const idx = tracks.findIndex(t => t.id === track.id)
-    if (idx >= 0) setQueue(tracks.slice(idx))
+    setCurrentLecture(lecture); setIsPlaying(true); setProgress(0); setCurrentTime(0)
+    const listToUse = list || filteredLectures
+    const idx = listToUse.findIndex(t => t.id === lecture.id)
+    if (idx >= 0) setQueue(listToUse.slice(idx))
     // Load and play audio
     if (audioRef.current) {
-      audioRef.current.src = track.src
+      audioRef.current.src = lecture.src
       audioRef.current.load()
       audioRef.current.play().catch(() => {})
     }
-  }, [currentTrack, filteredTracks])
+  }, [currentLecture, filteredLectures])
 
   const playNext = useCallback(() => {
-    if (!currentTrack || queue.length === 0) return
-    const idx = queue.findIndex(t => t.id === currentTrack.id)
+    if (!currentLecture || queue.length === 0) return
+    const idx = queue.findIndex(t => t.id === currentLecture.id)
     if (idx < queue.length - 1) {
-      const n = queue[idx+1]; setCurrentTrack(n); setIsPlaying(true); setProgress(0); setCurrentTime(0)
+      const n = queue[idx+1]; setCurrentLecture(n); setIsPlaying(true); setProgress(0); setCurrentTime(0)
       if (audioRef.current) { audioRef.current.src = n.src; audioRef.current.load(); audioRef.current.play().catch(() => {}) }
     }
-  }, [currentTrack, queue])
+  }, [currentLecture, queue])
 
   const playPrev = useCallback(() => {
-    if (!currentTrack || queue.length === 0) return
-    const idx = queue.findIndex(t => t.id === currentTrack.id)
+    if (!currentLecture || queue.length === 0) return
+    const idx = queue.findIndex(t => t.id === currentLecture.id)
     if (idx > 0) {
-      const p = queue[idx-1]; setCurrentTrack(p); setIsPlaying(true); setProgress(0); setCurrentTime(0)
+      const p = queue[idx-1]; setCurrentLecture(p); setIsPlaying(true); setProgress(0); setCurrentTime(0)
       if (audioRef.current) { audioRef.current.src = p.src; audioRef.current.load(); audioRef.current.play().catch(() => {}) }
     }
-  }, [currentTrack, queue])
+  }, [currentLecture, queue])
 
   /* ─── Audio sync ─── */
   useEffect(() => {
@@ -217,7 +217,7 @@ export default function App() {
     }
     const onEnded = () => playNext()
     const onLoadedMetadata = () => {
-      if (currentTrack && audio.duration) {
+      if (currentLecture && audio.duration) {
         // Update duration display
       }
     }
@@ -229,25 +229,25 @@ export default function App() {
       audio.removeEventListener('ended', onEnded)
       audio.removeEventListener('loadedmetadata', onLoadedMetadata)
     }
-  }, [currentTrack, playNext])
+  }, [currentLecture, playNext])
 
   /* ─── Play/Pause sync ─── */
   useEffect(() => {
     const audio = audioRef.current
-    if (!audio || !currentTrack) return
+    if (!audio || !currentLecture) return
     if (isPlaying) { audio.play().catch(() => {}) }
     else { audio.pause() }
-  }, [isPlaying, currentTrack])
+  }, [isPlaying, currentLecture])
 
   const [dragging, setDragging] = useState<'progress' | 'volume' | null>(null)
   const [shuffled, setShuffled] = useState(false)
   const [repeated, setRepeated] = useState(false)
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!currentTrack) return
+    if (!currentLecture) return
     const rect = e.currentTarget.getBoundingClientRect()
     const pct = (e.clientX - rect.left) / rect.width
-    const total = parseDur(currentTrack.duration)
+    const total = parseDur(currentLecture.duration)
     setCurrentTime(pct * total); setProgress(pct)
   }
 
@@ -265,12 +265,12 @@ export default function App() {
   useEffect(() => {
     if (!dragging) return
     const onMove = (e: MouseEvent) => {
-      if (dragging === 'progress' && currentTrack) {
+      if (dragging === 'progress' && currentLecture) {
         const bar = document.querySelector('.player-progress-bar, .np-progress-bar')
         if (!bar) return
         const rect = bar.getBoundingClientRect()
         const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-        const total = parseDur(currentTrack.duration)
+        const total = parseDur(currentLecture.duration)
         setCurrentTime(pct * total); setProgress(pct)
       } else if (dragging === 'volume') {
         const bar = document.querySelector('.player-vol-bar, .np-volume-bar')
@@ -284,7 +284,7 @@ export default function App() {
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
     return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
-  }, [dragging, currentTrack])
+  }, [dragging, currentLecture])
 
   /* ─── Close context menu on click outside ─── */
   useEffect(() => {
@@ -345,7 +345,7 @@ export default function App() {
         <nav className="sidebar-nav">
           <button className={`sidebar-nav-item ${page==='home'&&!activeCategory?'active':''}`} onClick={() => { setActiveCategory(null); goto('home') }}>{Ico.home} {T('nav_home')}</button>
           <button className={`sidebar-nav-item ${page==='search'?'active':''}`} onClick={() => goto('search')}>{Ico.search} {T('nav_search')}</button>
-          <button className={`sidebar-nav-item ${page==='ai-playlist'?'active':''}`} onClick={() => goto('ai-playlist')}>{Ico.library} {T('nav_playlist')}</button>
+          <button className={`sidebar-nav-item ${page==='playlists'?'active':''}`} onClick={() => goto('playlists')}>{Ico.library} {T('nav_playlist')}</button>
           <button className={`sidebar-nav-item ${page==='library'?'active':''}`} onClick={() => goto('library')}>{Ico.library} {T('nav_library')}</button>
           <button className={`sidebar-nav-item ${page==='profile'?'active':''}`} onClick={() => goto('profile')}>{Ico.user} {T('nav_profile')}</button>
         </nav>
@@ -380,19 +380,19 @@ export default function App() {
                     <h2 className="hero-card-title">{T('hero_subtitle')} <em>{T('hero_subtitle_italic')}</em> {T('hero_subtitle_end')}</h2>
                     <p className="hero-card-desc">{T('hero_desc')}</p>
                     <div className="hero-card-actions">
-                      <button className="hero-btn hero-btn-primary" onClick={() => { playTrack(audioData[0], audioData) }}>▶ {T('btn_continue')}</button>
+                      <button className="hero-btn hero-btn-primary" onClick={() => { playLecture(lectures[0], lectures) }}>▶ {T('btn_continue')}</button>
                       <button className="hero-btn hero-btn-secondary" onClick={() => goto('search')}>🔎 {T('btn_catalog')}</button>
                       <button className="hero-btn hero-btn-secondary" onClick={() => setWaveSettingsOpen(true)}>⚙ {T('btn_configure')}</button>
                     </div>
-                    <div className="hero-tracks">
-                      {audioData.slice(0, 6).map(t => (
-                        <div key={t.id} className={`hero-track ${currentTrack?.id===t.id?'playing':''}`} onClick={() => playTrack(t)}>
-                          <div className="hero-track-icon" style={{background: trackBg(t)}}>{t.icon}</div>
+                    <div className="hero-lectures">
+                      {lectures.slice(0, 6).map(t => (
+                        <div key={t.id} className={`hero-lecture ${currentLecture?.id===t.id?'playing':''}`} onClick={() => playLecture(t)}>
+                          <div className="hero-lecture-icon" style={{background: trackBg(t)}}>{t.icon}</div>
                           <div>
-                            <div className="hero-track-title">{t.title}</div>
-                            <div className="hero-track-author">{t.author}</div>
+                            <div className="hero-lecture-title">{t.title}</div>
+                            <div className="hero-lecture-scholar">{t.scholar}</div>
                           </div>
-                          <div className="hero-track-play">{Ico.play}</div>
+                          <div className="hero-lecture-play">{Ico.play}</div>
                         </div>
                       ))}
                     </div>
@@ -403,7 +403,7 @@ export default function App() {
 
                 {/* AI Banner */}
                 <TiltSpotlightCard maxTilt={6} glowColor="rgba(139,92,246,0.2)" style={{borderRadius:14,marginBottom:40}}>
-                  <div className="ai-banner glow-card" style={{margin:0,border:'none'}} onClick={() => goto('ai-playlist')}>
+                  <div className="ai-banner glow-card" style={{margin:0,border:'none'}} onClick={() => goto('playlists')}>
                     <div className="ai-banner-icon">{Ico.sparkles}</div>
                     <div>
                       <div className="ai-banner-label">Плейлист</div>
@@ -444,13 +444,13 @@ export default function App() {
                   })}
                 </div>
 
-                {/* Speakers Section - Horizontal scroll like Photo 1 */}
+                {/* scholars Section - Horizontal scroll like Photo 1 */}
                 <div className="section-header" style={{marginTop:48,justifyContent:'space-between'}}>
                   <h3 className="section-title" style={{margin:0}}>Популярные лекторы</h3>
-                  <button className="hero-btn hero-btn-secondary" onClick={() => goto('speakers')}>Показать все</button>
+                  <button className="hero-btn hero-btn-secondary" onClick={() => goto('scholars')}>Показать все</button>
                 </div>
-                <div className="speakers-scroll-home">
-                  {speakers.slice(0, 8).map((s, i) => {
+                <div className="scholars-scroll-home">
+                  {scholars.slice(0, 8).map((s, i) => {
                     const demoImages = [
                       'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
                       'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
@@ -462,15 +462,15 @@ export default function App() {
                       'https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=200&h=200&fit=crop&crop=face',
                     ]
                     return (
-                      <div key={s.id} className="speaker-card-home" onClick={() => { setSelectedSpeaker(s); goto('speaker') }}>
-                        <div className="speaker-avatar-home" style={{background: getSpeakerGradient(s.id)}}>
+                      <div key={s.id} className="scholar-card-home" onClick={() => { setselectedScholar(s); goto('scholar') }}>
+                        <div className="scholar-avatar-home" style={{background: getSpeakerGradient(s.id)}}>
                           <img src={demoImages[i] || demoImages[0]} alt={s.name} onError={(e) => { (e.target as HTMLImageElement).style.display='none' }} />
-                          <div className="speaker-avatar-home-inner">
-                            {s.imageUrl ? <img src={s.imageUrl} alt={s.name} /> : <span className="speaker-initials-home">{getInitials(s.name)}</span>}
+                          <div className="scholar-avatar-home-inner">
+                            {s.imageUrl ? <img src={s.imageUrl} alt={s.name} /> : <span className="scholar-initials-home">{getInitials(s.name)}</span>}
                           </div>
                         </div>
-                        <div className="speaker-name-home">{s.name.replace(/^Шейх\s+/, '')}</div>
-                        <div className="speaker-role-home">{s.role}</div>
+                        <div className="scholar-name-home">{s.name.replace(/^Шейх\s+/, '')}</div>
+                        <div className="scholar-role-home">{s.role}</div>
                       </div>
                     )
                   })}
@@ -489,8 +489,8 @@ export default function App() {
                 </div>
                 {searchQuery.trim() ? (
                   <>
-                    <p className="section-desc">{T('search_found')}: {filteredTracks.length}</p>
-                    <TrackList tracks={filteredTracks} currentTrack={currentTrack} isPlaying={isPlaying} onPlay={playTrack} />
+                    <p className="section-desc">{T('search_found')}: {filteredLectures.length}</p>
+                    <LectureList tracks={filteredLectures} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
                   </>
                 ) : (
                   <>
@@ -532,7 +532,7 @@ export default function App() {
             )}
 
             {/* ═══ PLAYLISTS ═══ */}
-            {page === 'ai-playlist' && (
+            {page === 'playlists' && (
               <>
                 <h1 className="page-title" style={{marginBottom:20}}>Плейлисты</h1>
                 <div className="lib-tabs" style={{marginBottom:20}}>
@@ -553,7 +553,7 @@ export default function App() {
                       <div key={i} className="playlist-yt-card" onClick={() => { setSelectedDailyPlaylist(i); goto('daily-playlist') }}>
                         <div className="playlist-yt-thumb" style={{background: pl.gradient}}>
                           <img src={demoThumbs[i]} alt={pl.name} onError={(e) => { (e.target as HTMLImageElement).style.display='none' }} />
-                          <div className="playlist-yt-count">{pl.tracks.length || 3} видео</div>
+                          <div className="playlist-yt-count">{pl.lectures.length || 3} видео</div>
                         </div>
                         <div className="playlist-yt-info">
                           <div className="playlist-yt-title">{pl.name}</div>
@@ -610,7 +610,7 @@ export default function App() {
                 )}
                 {libTab === 'albums' && (
                   liked.size > 0 ? (
-                    <TrackList tracks={audioData.filter(t => liked.has(t.id))} currentTrack={currentTrack} isPlaying={isPlaying} onPlay={playTrack} />
+                    <LectureList tracks={lectures.filter(t => liked.has(t.id))} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
                   ) : (
                     <div className="lib-empty">
                       <div className="lib-empty-icon">❤️</div>
@@ -646,7 +646,7 @@ export default function App() {
                     <div className="cat-header-name">{activeCategory.name}</div>
                     <div className="cat-header-count">{activeCategory.count} аудио записей</div>
                     <div className="cat-header-actions">
-                      <button className="cat-play-btn" onClick={() => { const tracks = audioData.filter(t=>t.categoryId===activeCategory.id); playTrack(tracks[0], tracks) }}>▶ Слушать</button>
+                      <button className="cat-play-btn" onClick={() => { const tracks = lectures.filter(t=>t.categoryId===activeCategory.id); playLecture(tracks[0], tracks) }}>▶ Слушать</button>
                       <button className="cat-icon-btn" onClick={() => toggleLike(activeCategory.id)}>{liked.has(activeCategory.id) ? Ico.heartFill : Ico.heart}</button>
                       <button className="cat-icon-btn">{Ico.radio}</button>
                       <button className="cat-icon-btn">{Ico.share}</button>
@@ -654,7 +654,7 @@ export default function App() {
                   </div>
                 </div>
                 <h3 className="section-title" style={{marginBottom:12}}>Популярные треки</h3>
-                <TrackList tracks={audioData.filter(t=>t.categoryId===activeCategory.id)} currentTrack={currentTrack} isPlaying={isPlaying} onPlay={playTrack} />
+                <LectureList tracks={lectures.filter(t=>t.categoryId===activeCategory.id)} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
               </>
             )}
 
@@ -670,7 +670,7 @@ export default function App() {
                   </div>
                 </div>
                 {liked.size > 0 ? (
-                  <TrackList tracks={audioData.filter(t => liked.has(t.id))} currentTrack={currentTrack} isPlaying={isPlaying} onPlay={playTrack} />
+                  <LectureList tracks={lectures.filter(t => liked.has(t.id))} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
                 ) : (
                   <div className="lib-empty">
                     <div className="lib-empty-icon">❤️</div>
@@ -795,46 +795,46 @@ export default function App() {
                     <p className="page-subtitle">{dailyPlaylists[selectedDailyPlaylist].desc}</p>
                     <div className="daily-playlist-count">50 треков</div>
                     <div className="daily-playlist-actions">
-                      <button className="cat-play-btn" onClick={() => playTrack(dailyPlaylists[selectedDailyPlaylist].tracks[0], dailyPlaylists[selectedDailyPlaylist].tracks)}>▶ Слушать</button>
+                      <button className="cat-play-btn" onClick={() => playLecture(dailyPlaylists[selectedDailyPlaylist].lectures[0], dailyPlaylists[selectedDailyPlaylist].lectures)}>▶ Слушать</button>
                       <button className="cat-icon-btn">{Ico.library} В библиотеку</button>
                     </div>
                   </div>
                 </div>
-                <TrackList tracks={dailyPlaylists[selectedDailyPlaylist].tracks} currentTrack={currentTrack} isPlaying={isPlaying} onPlay={playTrack} />
+                <LectureList tracks={dailyPlaylists[selectedDailyPlaylist].lectures} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
               </>
             )}
 
-            {/* ═══ SPEAKERS LIST ═══ */}
-            {page === 'speakers' && (
+            {/* ═══ scholars LIST ═══ */}
+            {page === 'scholars' && (
               <>
                 <div className="page-eyebrow">Коллекция</div>
                 <h1 className="page-title" style={{marginBottom:20}}>Учёные, лекторы и чтецы</h1>
                 <div className="search-bar">
                   {Ico.search}
-                  <input type="text" placeholder="Поиск лекторов..." value={speakerSearch} onChange={e => setSpeakerSearch(e.target.value)} />
+                  <input type="text" placeholder="Поиск лекторов..." value={scholarSearch} onChange={e => setScholarSearch(e.target.value)} />
                 </div>
                 <div className="lib-tabs" style={{marginBottom:20}}>
                   {['all', 'Учёный', 'Лектор', 'Чтец'].map(r => (
-                    <button key={r} className={`lib-tab ${speakerRoleFilter===r?'active':''}`} onClick={() => setSpeakerRoleFilter(r)}>
+                    <button key={r} className={`lib-tab ${scholarRoleFilter===r?'active':''}`} onClick={() => setScholarRoleFilter(r)}>
                       {r === 'all' ? 'Все' : r}
                     </button>
                   ))}
                 </div>
-                <div className="speakers-grid">
-                  {speakers
-                    .filter(s => speakerRoleFilter === 'all' || s.role === speakerRoleFilter)
-                    .filter(s => !speakerSearch.trim() || s.name.toLowerCase().includes(speakerSearch.toLowerCase()) || s.nameAr.includes(speakerSearch))
+                <div className="scholars-grid">
+                  {scholars
+                    .filter(s => scholarRoleFilter === 'all' || s.role === scholarRoleFilter)
+                    .filter(s => !scholarSearch.trim() || s.name.toLowerCase().includes(scholarSearch.toLowerCase()) || s.nameAr.includes(scholarSearch))
                     .map(s => (
-                      <div key={s.id} className="speaker-card-lg" onClick={() => { setSelectedSpeaker(s); goto('speaker') }}>
-                        <div className="speaker-avatar-lg" style={{background: getSpeakerGradient(s.id)}}>
-                          {s.imageUrl ? <img src={s.imageUrl} alt={s.name} /> : <span className="speaker-initials-lg">{getInitials(s.name)}</span>}
+                      <div key={s.id} className="scholar-card-lg" onClick={() => { setselectedScholar(s); goto('scholar') }}>
+                        <div className="scholar-avatar-lg" style={{background: getSpeakerGradient(s.id)}}>
+                          {s.imageUrl ? <img src={s.imageUrl} alt={s.name} /> : <span className="scholar-initials-lg">{getInitials(s.name)}</span>}
                         </div>
-                        <div className="speaker-card-info">
-                          <div className="speaker-card-name">{s.name}</div>
-                          {s.nameAr && <div className="speaker-card-ar">{s.nameAr}</div>}
-                          <div className="speaker-card-role">{s.role}</div>
-                          <div className="speaker-card-desc">{s.description.slice(0, 80)}...</div>
-                          <div className="speaker-card-tags">{s.tags.map(t => <span key={t} className="speaker-tag">{t}</span>)}</div>
+                        <div className="scholar-card-info">
+                          <div className="scholar-card-name">{s.name}</div>
+                          {s.nameAr && <div className="scholar-card-ar">{s.nameAr}</div>}
+                          <div className="scholar-card-role">{s.role}</div>
+                          <div className="scholar-card-desc">{s.description.slice(0, 80)}...</div>
+                          <div className="scholar-card-tags">{s.tags.map(t => <span key={t} className="scholar-tag">{t}</span>)}</div>
                         </div>
                       </div>
                     ))}
@@ -842,25 +842,25 @@ export default function App() {
               </>
             )}
 
-            {/* ═══ SINGLE SPEAKER ═══ */}
-            {page === 'speaker' && selectedSpeaker && (
+            {/* ═══ SINGLE scholar ═══ */}
+            {page === 'scholar' && selectedScholar && (
               <>
-                <button className="back-btn" onClick={() => goto('speakers')}>{Ico.back} Назад</button>
-                <div className="speaker-detail">
-                  <div className="speaker-detail-avatar" style={{background: getSpeakerGradient(selectedSpeaker.id)}}>
-                    {selectedSpeaker.imageUrl ? <img src={selectedSpeaker.imageUrl} alt={selectedSpeaker.name} /> : <span className="speaker-initials-detail">{getInitials(selectedSpeaker.name)}</span>}
+                <button className="back-btn" onClick={() => goto('scholars')}>{Ico.back} Назад</button>
+                <div className="scholar-detail">
+                  <div className="scholar-detail-avatar" style={{background: getSpeakerGradient(selectedScholar.id)}}>
+                    {selectedScholar.imageUrl ? <img src={selectedScholar.imageUrl} alt={selectedScholar.name} /> : <span className="scholar-initials-detail">{getInitials(selectedScholar.name)}</span>}
                   </div>
-                  <div className="speaker-detail-info">
-                    <div className="page-eyebrow">{selectedSpeaker.role}</div>
-                    <h1 className="page-title" style={{marginBottom:4}}>{selectedSpeaker.name}</h1>
-                    {selectedSpeaker.nameAr && <div className="speaker-detail-ar">{selectedSpeaker.nameAr}</div>}
-                    <p className="page-subtitle" style={{marginBottom:16}}>{selectedSpeaker.description}</p>
-                    <div className="speaker-detail-tags">{selectedSpeaker.tags.map(t => <span key={t} className="speaker-tag">{t}</span>)}</div>
+                  <div className="scholar-detail-info">
+                    <div className="page-eyebrow">{selectedScholar.role}</div>
+                    <h1 className="page-title" style={{marginBottom:4}}>{selectedScholar.name}</h1>
+                    {selectedScholar.nameAr && <div className="scholar-detail-ar">{selectedScholar.nameAr}</div>}
+                    <p className="page-subtitle" style={{marginBottom:16}}>{selectedScholar.description}</p>
+                    <div className="scholar-detail-tags">{selectedScholar.tags.map(t => <span key={t} className="scholar-tag">{t}</span>)}</div>
                   </div>
                 </div>
                 <h3 className="section-title" style={{margin:'24px 0 12px'}}>Уроки</h3>
-                {audioData.filter(t => t.speakerId === selectedSpeaker.id).length > 0 ? (
-                  <TrackList tracks={audioData.filter(t => t.speakerId === selectedSpeaker.id)} currentTrack={currentTrack} isPlaying={isPlaying} onPlay={playTrack} />
+                {lectures.filter(t => t.scholarId === selectedScholar.id).length > 0 ? (
+                  <LectureList tracks={lectures.filter(t => t.scholarId === selectedScholar.id)} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
                 ) : (
                   <div className="lib-empty">
                     <div className="lib-empty-icon">📚</div>
@@ -898,19 +898,19 @@ export default function App() {
         {/* ─── Bottom Player ─── */}
         <div className={`player ${isPlaying?'playing':''}`}>
           <div className="player-left">
-            <div className="player-thumb" style={currentTrack ? {background:trackBg(currentTrack)} : {}} onClick={() => currentTrack && setNowPlaying(true)}>
-              {currentTrack ? currentTrack.icon : '🎵'}
+            <div className="player-thumb" style={currentLecture ? {background:trackBg(currentLecture)} : {}} onClick={() => currentLecture && setNowPlaying(true)}>
+              {currentLecture ? currentLecture.icon : '🎵'}
             </div>
-            <div className="player-track-info">
-              <div className="player-track-title" onClick={() => currentTrack && setNowPlaying(true)}>{currentTrack?.title || T('player_select')}</div>
-              <div className="player-track-author" onClick={() => currentTrack && setNowPlaying(true)}>{currentTrack?.author || T('player_for')}</div>
+            <div className="player-lecture-info">
+              <div className="player-lecture-title" onClick={() => currentLecture && setNowPlaying(true)}>{currentLecture?.title || T('player_select')}</div>
+              <div className="player-lecture-scholar" onClick={() => currentLecture && setNowPlaying(true)}>{currentLecture?.scholar || T('player_for')}</div>
             </div>
           </div>
           <div className="player-center">
             <div className="player-btns">
               <button className={`player-btn ${shuffled?'active':''}`} onClick={() => setShuffled(s => !s)}>{Ico.shuffle}</button>
               <button className="player-btn" onClick={playPrev}>{Ico.prev}</button>
-              <button className="player-btn player-btn-play" onClick={() => currentTrack && setIsPlaying(p => !p)}>
+              <button className="player-btn player-btn-play" onClick={() => currentLecture && setIsPlaying(p => !p)}>
                 {isPlaying ? Ico.pause : Ico.play}
               </button>
               <button className="player-btn" onClick={playNext}>{Ico.next}</button>
@@ -921,12 +921,12 @@ export default function App() {
               <div className="player-progress-bar" onClick={handleProgressClick} onMouseDown={handleDragStart('progress')}>
                 <div className="player-progress-fill" style={{width:`${progress*100}%`}} />
               </div>
-              <span className="player-time">{currentTrack ? (audioRef.current?.duration ? fmtTime(audioRef.current.duration) : currentTrack.duration) : '0:00'}</span>
+              <span className="player-time">{currentLecture ? (audioRef.current?.duration ? fmtTime(audioRef.current.duration) : currentLecture.duration) : '0:00'}</span>
             </div>
           </div>
           <div className="player-right">
             <div className="player-extra-btns">
-              <button className="player-extra-btn" onClick={() => currentTrack && setNowPlaying(true)}>{Ico.heart}</button>
+              <button className="player-extra-btn" onClick={() => currentLecture && setNowPlaying(true)}>{Ico.heart}</button>
               <button className="player-extra-btn" onClick={() => setQueueOpen(true)}>{Ico.list}</button>
               <button className="player-extra-btn" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCtxMenu({x: Math.min(rect.left, window.innerWidth - 240), y: Math.max(8, rect.top - 320)}) }}>{Ico.dots}</button>
             </div>
@@ -936,7 +936,7 @@ export default function App() {
                 <div className="player-vol-fill" style={{width:`${(muted?0:volume)*100}%`}} />
               </div>
             </div>
-            <div className="player-expand" onClick={() => currentTrack && setNowPlaying(true)}>{Ico.expand}</div>
+            <div className="player-expand" onClick={() => currentLecture && setNowPlaying(true)}>{Ico.expand}</div>
           </div>
         </div>
       </div>
@@ -988,12 +988,12 @@ export default function App() {
           </div>
           <div className="queue-list">
             {queue.map((t,i) => (
-              <div key={`${t.id}-${i}`} className={`queue-item ${currentTrack?.id===t.id?'playing':''}`} onClick={() => playTrack(t)}>
+              <div key={`${t.id}-${i}`} className={`queue-item ${currentLecture?.id===t.id?'playing':''}`} onClick={() => playLecture(t)}>
                 <div className="queue-item-drag">{Ico.grip}</div>
                 <div className="queue-item-thumb" style={{background: categories.find(c=>c.id===t.categoryId)?.gradient || '#333'}}>{t.icon}</div>
                 <div className="queue-item-info">
                   <div className="queue-item-title">{t.title}</div>
-                  <div className="queue-item-author">{t.author}</div>
+                  <div className="queue-item-Scholar">{t.scholar}</div>
                 </div>
                 <div className="queue-item-actions">
                   <button className="queue-item-btn" onClick={e => {e.stopPropagation();removeFromQueue(t.id)}}>{Ico.trash}</button>
@@ -1022,7 +1022,7 @@ export default function App() {
             <div className="ctx-item" onClick={() => setCtxMenu(null)}>{Ico.user} {T('ctx_artist')} {Ico.chevRight}</div>
             <div className="ctx-item" onClick={() => setCtxMenu(null)}>{Ico.library} {T('ctx_album')}</div>
             <div className="ctx-divider" />
-            <div className="ctx-item" onClick={() => setCtxMenu(null)}>{Ico.close} {T('ctx_hide_track')}</div>
+            <div className="ctx-item" onClick={() => setCtxMenu(null)}>{Ico.close} {T('ctx_hide_lecture')}</div>
             <div className="ctx-item" onClick={() => setCtxMenu(null)}>{Ico.close} {T('ctx_hide_artist')} {Ico.chevRight}</div>
           </div>
         </>
@@ -1071,9 +1071,9 @@ export default function App() {
       </div>
 
       {/* ─── Now Playing (fullscreen) ─── */}
-      {nowPlaying && currentTrack && (
+      {nowPlaying && currentLecture && (
         <div className="now-playing">
-          <div className="np-bg"><div className="np-bg-blur" style={{background: trackBg(currentTrack)}} /></div>
+          <div className="np-bg"><div className="np-bg-blur" style={{background: trackBg(currentLecture)}} /></div>
           <div className="np-top">
             <button className="np-top-btn" onClick={() => setNowPlaying(false)}>{Ico.chevDown}</button>
             <span className="np-top-title">{T('np_now')}</span>
@@ -1089,15 +1089,15 @@ export default function App() {
           {npView === 'main' && (
             <>
               <div className="np-art">
-                <div className="np-art-inner" style={{background:trackBg(currentTrack)}}>{currentTrack.icon}</div>
+                <div className="np-art-inner" style={{background:trackBg(currentLecture)}}>{currentLecture.icon}</div>
               </div>
               <div className="np-info">
-                <div className="np-track-title">{currentTrack.title}</div>
-                <div className="np-track-author">{currentTrack.author}</div>
+                <div className="np-lecture-title">{currentLecture.title}</div>
+                <div className="np-lecture-scholar">{currentLecture.scholar}</div>
               </div>
               <div className="np-actions-row">
-                <button className={`np-action-btn ${liked.has(currentTrack.id)?'liked':''}`} onClick={() => toggleLike(currentTrack.id)}>
-                  {liked.has(currentTrack.id) ? Ico.heartFill : Ico.heart}
+                <button className={`np-action-btn ${liked.has(currentLecture.id)?'liked':''}`} onClick={() => toggleLike(currentLecture.id)}>
+                  {liked.has(currentLecture.id) ? Ico.heartFill : Ico.heart}
                 </button>
               </div>
             </>
@@ -1123,7 +1123,7 @@ export default function App() {
             </div>
             <div className="np-progress-times">
               <span>{fmtTime(currentTime)}</span>
-              <span>{audioRef.current?.duration ? fmtTime(audioRef.current.duration) : currentTrack.duration}</span>
+              <span>{audioRef.current?.duration ? fmtTime(audioRef.current.duration) : currentLecture.duration}</span>
             </div>
           </div>
           <div className="np-controls">
@@ -1147,35 +1147,35 @@ export default function App() {
   )
 }
 
-/* ─── TrackList ─── */
-function TrackList({ tracks, currentTrack, isPlaying, onPlay }: {
-  tracks: AudioTrack[]; currentTrack: AudioTrack | null; isPlaying: boolean; onPlay: (t: AudioTrack) => void
+/* ─── LectureList ─── */
+function LectureList({ tracks, currentLecture, isPlaying, onPlay }: {
+  tracks: Lecture[]; currentLecture: Lecture | null; isPlaying: boolean; onPlay: (t: Lecture) => void
 }) {
   if (!tracks.length) return <div className="lib-empty"><div className="lib-empty-icon">🔍</div><div className="lib-empty-title">Ничего не найдено</div></div>
   return (
-    <div className="track-list">
-      <div className="track-list-header"><span>#</span><span>Название</span><span style={{textAlign:'right'}}>Длит.</span><span></span></div>
+    <div className="lecture-list">
+      <div className="lecture-list-header"><span>#</span><span>Название</span><span style={{textAlign:'right'}}>Длит.</span><span></span></div>
       {tracks.map((t, i) => {
-        const active = currentTrack?.id === t.id
+        const active = currentLecture?.id === t.id
         const playing = active && isPlaying
         return (
-          <div key={t.id} className={`track-row ${active?'playing':''}`} onDoubleClick={() => onPlay(t)}>
-            <div className="track-num">
+          <div key={t.id} className={`lecture-row ${active?'playing':''}`} onDoubleClick={() => onPlay(t)}>
+            <div className="lecture-num">
               <span className="num">{i+1}</span>
               <span className="play-ind" onClick={() => onPlay(t)}>{playing ? Ico.pause : Ico.play}</span>
               <span className="playing-anim">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--accent)"><rect x="6" y="4" width="4" height="16" rx="1"><animate attributeName="height" values="16;8;16" dur=".8s" repeatCount="indefinite"/><animate attributeName="y" values="4;8;4" dur=".8s" repeatCount="indefinite"/></rect><rect x="14" y="4" width="4" height="16" rx="1"><animate attributeName="height" values="8;16;8" dur=".8s" repeatCount="indefinite"/><animate attributeName="y" values="8;4;8" dur=".8s" repeatCount="indefinite"/></rect></svg>
               </span>
             </div>
-            <div className="track-title-wrap" onClick={() => onPlay(t)}>
-              <div className="track-thumb" style={{background: categories.find(c=>c.id===t.categoryId)?.gradient || '#333'}}>{t.icon}</div>
-              <div className="track-title-info">
-                <div className="track-title">{t.title}</div>
-                <div className="track-author">{t.author}</div>
+            <div className="lecture-title-wrap" onClick={() => onPlay(t)}>
+              <div className="lecture-thumb" style={{background: categories.find(c=>c.id===t.categoryId)?.gradient || '#333'}}>{t.icon}</div>
+              <div className="lecture-title-info">
+                <div className="lecture-title">{t.title}</div>
+                <div className="track-scholar">{t.scholar}</div>
               </div>
             </div>
-            <div className="track-duration">{t.duration}</div>
-            <div className="track-action"><button className="track-action-btn" onClick={e => {e.stopPropagation();onPlay(t)}}>{playing ? Ico.pause : Ico.play}</button></div>
+            <div className="lecture-duration">{t.duration}</div>
+            <div className="lecture-action"><button className="lecture-action-btn" onClick={e => {e.stopPropagation();onPlay(t)}}>{playing ? Ico.pause : Ico.play}</button></div>
           </div>
         )
       })}
