@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { categories, audioData } from './data'
-import type { AudioTrack, Category } from './data'
+import type { AudioTrack, Category, Speaker } from './data'
 import TiltSpotlightCard from './components/effects/TiltSpotlightCard'
 import CursorGlow from './components/effects/CursorGlow'
 import NatureBackground from './components/effects/NatureBackground'
@@ -67,7 +67,27 @@ function getGreeting(): string {
   return 'Добрый вечер'
 }
 
-type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'ai-playlist' | 'rooms' | 'daily-playlist'
+function getInitials(name: string): string {
+  return name.replace(/^Шейх\s+/, '').split(' ').map(w => w[0]).join('').slice(0, 2)
+}
+
+function getSpeakerGradient(id: string): string {
+  const gradients: Record<string, string> = {
+    'ibn-uthaymeen': 'linear-gradient(135deg, #1b4332, #2d6a4f)',
+    'ibn-baz': 'linear-gradient(135deg, #3c096c, #7b2cbf)',
+    'al-albani': 'linear-gradient(135deg, #bc6c25, #606c38)',
+    'al-fawzan': 'linear-gradient(135deg, #1b4332, #40916c)',
+    'al-munajjid': 'linear-gradient(135deg, #7c5cfc, #a78bfa)',
+    'al-fuleij': 'linear-gradient(135deg, #2d6a4f, #52b788)',
+    'al-badr': 'linear-gradient(135deg, #5a189a, #9d4edd)',
+    'ar-ruhaili': 'linear-gradient(135deg, #b5179e, #f72585)',
+    'al-khamis': 'linear-gradient(135deg, #023e8a, #0077b6)',
+    'al-abbad': 'linear-gradient(135deg, #d4af37, #c9a84c)',
+  }
+  return gradients[id] || 'linear-gradient(135deg, #333, #555)'
+}
+
+type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'ai-playlist' | 'rooms' | 'daily-playlist' | 'speakers' | 'speaker'
 
 /* ─── App ─── */
 export default function App() {
@@ -102,6 +122,10 @@ export default function App() {
     return 'ru'
   })
   const [selectedDailyPlaylist, setSelectedDailyPlaylist] = useState<number | null>(null)
+  const [speakers, setSpeakers] = useState<Speaker[]>([])
+  const [selectedSpeaker, setSelectedSpeaker] = useState<Speaker | null>(null)
+  const [speakerSearch, setSpeakerSearch] = useState('')
+  const [speakerRoleFilter, setSpeakerRoleFilter] = useState<string>('all')
   const scrollRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -120,6 +144,10 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', currentTheme)
   }, [currentTheme])
+
+  useEffect(() => {
+    fetch('/data/speakers.json').then(r => r.json()).then((data: Speaker[]) => setSpeakers(data)).catch(() => {})
+  }, [])
 
   const trackBg = (t: AudioTrack) => categories.find(c => c.id === t.categoryId)?.gradient || 'linear-gradient(135deg,#333,#555)'
   const catBg = (c: Category) => c.gradient
@@ -321,6 +349,7 @@ export default function App() {
           <button className={`sidebar-nav-item ${page==='search'?'active':''}`} onClick={() => goto('search')}>{Ico.search} {T('nav_search')}</button>
           <button className={`sidebar-nav-item ${page==='ai-playlist'?'active':''}`} onClick={() => goto('ai-playlist')}>{Ico.library} {T('nav_playlist')}</button>
           <button className={`sidebar-nav-item ${page==='library'?'active':''}`} onClick={() => goto('library')}>{Ico.library} {T('nav_library')}</button>
+          <button className={`sidebar-nav-item ${page==='speakers'?'active':''}`} onClick={() => goto('speakers')}>{Ico.user} Лекторы</button>
           <button className={`sidebar-nav-item ${page==='profile'?'active':''}`} onClick={() => goto('profile')}>{Ico.user} {T('nav_profile')}</button>
         </nav>
         <div className="sidebar-pin">
@@ -416,6 +445,27 @@ export default function App() {
                       </div>
                     </TiltSpotlightCard>
                   ))}
+                </div>
+
+                {/* Speakers Section */}
+                <div className="section-header" style={{marginTop:48}}>
+                  <span className="section-badge">{Ico.user} Учёные и лекторы</span>
+                </div>
+                <h3 className="section-title">Лекторы и чтецы</h3>
+                <p className="section-desc">Известные учёные и лекторы ислама</p>
+                <div className="speakers-scroll">
+                  {speakers.slice(0, 8).map(s => (
+                    <div key={s.id} className="speaker-card" onClick={() => { setSelectedSpeaker(s); goto('speaker') }}>
+                      <div className="speaker-avatar" style={{background: getSpeakerGradient(s.id)}}>
+                        {s.imageUrl ? <img src={s.imageUrl} alt={s.name} /> : <span className="speaker-initials">{getInitials(s.name)}</span>}
+                      </div>
+                      <div className="speaker-name">{s.name}</div>
+                      <div className="speaker-role">{s.role}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{textAlign:'right',margin:'12px 0 40px'}}>
+                  <button className="hero-btn hero-btn-secondary" onClick={() => goto('speakers')}>Показать все {Ico.chevRight}</button>
                 </div>
               </>
             )}
@@ -750,6 +800,73 @@ export default function App() {
                   </div>
                 </div>
                 <TrackList tracks={dailyPlaylists[selectedDailyPlaylist].tracks} currentTrack={currentTrack} isPlaying={isPlaying} onPlay={playTrack} />
+              </>
+            )}
+
+            {/* ═══ SPEAKERS LIST ═══ */}
+            {page === 'speakers' && (
+              <>
+                <div className="page-eyebrow">Коллекция</div>
+                <h1 className="page-title" style={{marginBottom:20}}>Учёные, лекторы и чтецы</h1>
+                <div className="search-bar">
+                  {Ico.search}
+                  <input type="text" placeholder="Поиск лекторов..." value={speakerSearch} onChange={e => setSpeakerSearch(e.target.value)} />
+                </div>
+                <div className="lib-tabs" style={{marginBottom:20}}>
+                  {['all', 'Учёный', 'Лектор', 'Чтец'].map(r => (
+                    <button key={r} className={`lib-tab ${speakerRoleFilter===r?'active':''}`} onClick={() => setSpeakerRoleFilter(r)}>
+                      {r === 'all' ? 'Все' : r}
+                    </button>
+                  ))}
+                </div>
+                <div className="speakers-grid">
+                  {speakers
+                    .filter(s => speakerRoleFilter === 'all' || s.role === speakerRoleFilter)
+                    .filter(s => !speakerSearch.trim() || s.name.toLowerCase().includes(speakerSearch.toLowerCase()) || s.nameAr.includes(speakerSearch))
+                    .map(s => (
+                      <div key={s.id} className="speaker-card-lg" onClick={() => { setSelectedSpeaker(s); goto('speaker') }}>
+                        <div className="speaker-avatar-lg" style={{background: getSpeakerGradient(s.id)}}>
+                          {s.imageUrl ? <img src={s.imageUrl} alt={s.name} /> : <span className="speaker-initials-lg">{getInitials(s.name)}</span>}
+                        </div>
+                        <div className="speaker-card-info">
+                          <div className="speaker-card-name">{s.name}</div>
+                          {s.nameAr && <div className="speaker-card-ar">{s.nameAr}</div>}
+                          <div className="speaker-card-role">{s.role}</div>
+                          <div className="speaker-card-desc">{s.description.slice(0, 80)}...</div>
+                          <div className="speaker-card-tags">{s.tags.map(t => <span key={t} className="speaker-tag">{t}</span>)}</div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </>
+            )}
+
+            {/* ═══ SINGLE SPEAKER ═══ */}
+            {page === 'speaker' && selectedSpeaker && (
+              <>
+                <button className="back-btn" onClick={() => goto('speakers')}>{Ico.back} Назад</button>
+                <div className="speaker-detail">
+                  <div className="speaker-detail-avatar" style={{background: getSpeakerGradient(selectedSpeaker.id)}}>
+                    {selectedSpeaker.imageUrl ? <img src={selectedSpeaker.imageUrl} alt={selectedSpeaker.name} /> : <span className="speaker-initials-detail">{getInitials(selectedSpeaker.name)}</span>}
+                  </div>
+                  <div className="speaker-detail-info">
+                    <div className="page-eyebrow">{selectedSpeaker.role}</div>
+                    <h1 className="page-title" style={{marginBottom:4}}>{selectedSpeaker.name}</h1>
+                    {selectedSpeaker.nameAr && <div className="speaker-detail-ar">{selectedSpeaker.nameAr}</div>}
+                    <p className="page-subtitle" style={{marginBottom:16}}>{selectedSpeaker.description}</p>
+                    <div className="speaker-detail-tags">{selectedSpeaker.tags.map(t => <span key={t} className="speaker-tag">{t}</span>)}</div>
+                  </div>
+                </div>
+                <h3 className="section-title" style={{margin:'24px 0 12px'}}>Уроки</h3>
+                {audioData.filter(t => t.speakerId === selectedSpeaker.id).length > 0 ? (
+                  <TrackList tracks={audioData.filter(t => t.speakerId === selectedSpeaker.id)} currentTrack={currentTrack} isPlaying={isPlaying} onPlay={playTrack} />
+                ) : (
+                  <div className="lib-empty">
+                    <div className="lib-empty-icon">📚</div>
+                    <div className="lib-empty-title">Уроки будут добавлены</div>
+                    <div className="lib-empty-desc">Следите за обновлениями</div>
+                  </div>
+                )}
               </>
             )}
 

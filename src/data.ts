@@ -16,6 +16,20 @@ export interface AudioTrack {
   categoryId: string
   src: string
   cover?: string
+  speakerId?: string
+}
+
+export interface Speaker {
+  id: string
+  name: string
+  nameAr: string
+  role: string
+  description: string
+  imageUrl: string
+  lessonsCount: number
+  tags: string[]
+  sourceUrl: string
+  imageCredit: string
 }
 
 export const categories: Category[] = [
