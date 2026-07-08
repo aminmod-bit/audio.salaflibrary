@@ -349,7 +349,6 @@ export default function App() {
           <button className={`sidebar-nav-item ${page==='search'?'active':''}`} onClick={() => goto('search')}>{Ico.search} {T('nav_search')}</button>
           <button className={`sidebar-nav-item ${page==='ai-playlist'?'active':''}`} onClick={() => goto('ai-playlist')}>{Ico.library} {T('nav_playlist')}</button>
           <button className={`sidebar-nav-item ${page==='library'?'active':''}`} onClick={() => goto('library')}>{Ico.library} {T('nav_library')}</button>
-          <button className={`sidebar-nav-item ${page==='speakers'?'active':''}`} onClick={() => goto('speakers')}>{Ico.user} Лекторы</button>
           <button className={`sidebar-nav-item ${page==='profile'?'active':''}`} onClick={() => goto('profile')}>{Ico.user} {T('nav_profile')}</button>
         </nav>
         <div className="sidebar-pin">
@@ -419,53 +418,64 @@ export default function App() {
                   </div>
                 </TiltSpotlightCard>
 
-                <div className="section-header">
-                  <span className="section-badge">{Ico.list} {T('daily_badge')}</span>
+                {/* Playlists Section - YouTube style like Photo 4 */}
+                <div className="section-header" style={{marginTop:48,justifyContent:'space-between'}}>
+                  <h3 className="section-title" style={{margin:0}}>Плейлисты</h3>
+                  <button className="hero-btn hero-btn-secondary" onClick={() => goto('library')}>Посмотреть все</button>
                 </div>
-                <h3 className="section-title">{T('daily_title')}</h3>
-                <p className="section-desc">{T('daily_desc')}</p>
-                <div className="daily-grid">
-                  {dailyPlaylists.map((pl, i) => (
-                    <TiltSpotlightCard key={i} maxTilt={6} glowColor="rgba(168,85,247,0.25)" style={{borderRadius:14}}>
-                      <div className="daily-card" style={{margin:0,border:'none'}} onClick={() => { setSelectedDailyPlaylist(i); goto('daily-playlist') }}>
-                        <div className="daily-card-art" style={{background: pl.gradient}}>
-                          <div className="daily-card-art-bg">{pl.icon}</div>
-                          <div className="daily-card-play" onClick={e => { e.stopPropagation(); playTrack(pl.tracks[0], pl.tracks) }}>▶</div>
-                          <div className="daily-card-badge">♥ {pl.name}</div>
+                <div className="playlists-yt-grid">
+                  {dailyPlaylists.map((pl, i) => {
+                    const demoThumbs = [
+                      'https://images.unsplash.com/photo-1564153986483-8fc5c2b3d7e5?w=400&h=225&fit=crop',
+                      'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=225&fit=crop',
+                      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=225&fit=crop',
+                    ]
+                    return (
+                      <div key={i} className="playlist-yt-card" onClick={() => { setSelectedDailyPlaylist(i); goto('daily-playlist') }}>
+                        <div className="playlist-yt-thumb" style={{background: pl.gradient}}>
+                          <img src={demoThumbs[i]} alt={pl.name} onError={(e) => { (e.target as HTMLImageElement).style.display='none' }} />
+                          <div className="playlist-yt-count">3 видео</div>
                         </div>
-                        <div className="daily-card-body">
-                          <div className="daily-card-name">{pl.name}</div>
-                          <div className="daily-card-desc">{pl.desc}</div>
-                        <div className="daily-card-count">{T('daily_50')}</div>
-                        <div className="daily-card-btns">
-                          <button className="daily-card-btn daily-card-btn-play" onClick={e => { e.stopPropagation(); playTrack(pl.tracks[0], pl.tracks) }}>▶ {i===0?T('btn_continue'):T('btn_listen')}</button>
-                          <button className="daily-card-btn daily-card-btn-lib">{Ico.library} {T('btn_to_lib')}</button>
-                          </div>
+                        <div className="playlist-yt-info">
+                          <div className="playlist-yt-title">{pl.name}</div>
+                          <div className="playlist-yt-meta">Ограниченный доступ · Плейлист</div>
+                          <div className="playlist-yt-link">Посмотреть весь плейлист</div>
                         </div>
                       </div>
-                    </TiltSpotlightCard>
-                  ))}
+                    )
+                  })}
                 </div>
 
-                {/* Speakers Section */}
-                <div className="section-header" style={{marginTop:48}}>
-                  <span className="section-badge">{Ico.user} Учёные и лекторы</span>
+                {/* Speakers Section - Horizontal scroll like Photo 1 */}
+                <div className="section-header" style={{marginTop:48,justifyContent:'space-between'}}>
+                  <h3 className="section-title" style={{margin:0}}>Популярные лекторы</h3>
+                  <button className="hero-btn hero-btn-secondary" onClick={() => goto('speakers')}>Показать все</button>
                 </div>
-                <h3 className="section-title">Лекторы и чтецы</h3>
-                <p className="section-desc">Известные учёные и лекторы ислама</p>
-                <div className="speakers-scroll">
-                  {speakers.slice(0, 8).map(s => (
-                    <div key={s.id} className="speaker-card" onClick={() => { setSelectedSpeaker(s); goto('speaker') }}>
-                      <div className="speaker-avatar" style={{background: getSpeakerGradient(s.id)}}>
-                        {s.imageUrl ? <img src={s.imageUrl} alt={s.name} /> : <span className="speaker-initials">{getInitials(s.name)}</span>}
+                <div className="speakers-scroll-home">
+                  {speakers.slice(0, 8).map((s, i) => {
+                    const demoImages = [
+                      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
+                      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
+                      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=face',
+                      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&crop=face',
+                      'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=200&h=200&fit=crop&crop=face',
+                      'https://images.unsplash.com/photo-1463453091185-61582044d556?w=200&h=200&fit=crop&crop=face',
+                      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200&h=200&fit=crop&crop=face',
+                      'https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=200&h=200&fit=crop&crop=face',
+                    ]
+                    return (
+                      <div key={s.id} className="speaker-card-home" onClick={() => { setSelectedSpeaker(s); goto('speaker') }}>
+                        <div className="speaker-avatar-home" style={{background: getSpeakerGradient(s.id)}}>
+                          <img src={demoImages[i] || demoImages[0]} alt={s.name} onError={(e) => { (e.target as HTMLImageElement).style.display='none' }} />
+                          <div className="speaker-avatar-home-inner">
+                            {s.imageUrl ? <img src={s.imageUrl} alt={s.name} /> : <span className="speaker-initials-home">{getInitials(s.name)}</span>}
+                          </div>
+                        </div>
+                        <div className="speaker-name-home">{s.name.replace(/^Шейх\s+/, '')}</div>
+                        <div className="speaker-role-home">{s.role}</div>
                       </div>
-                      <div className="speaker-name">{s.name}</div>
-                      <div className="speaker-role">{s.role}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{textAlign:'right',margin:'12px 0 40px'}}>
-                  <button className="hero-btn hero-btn-secondary" onClick={() => goto('speakers')}>Показать все {Ico.chevRight}</button>
+                    )
+                  })}
                 </div>
               </>
             )}
@@ -668,21 +678,6 @@ export default function App() {
             {/* ═══ PROFILE ═══ */}
             {page === 'profile' && (
               <>
-                {/* Profile card */}
-                <div className="profile-card">
-                  <div className="profile-top">
-                    <div className="profile-avatar">АК</div>
-                    <div className="profile-info">
-                      <div className="profile-label">Профиль</div>
-                      <div className="profile-name">Abu Katana</div>
-                      <div className="profile-handle">@abusaliх</div>
-                    </div>
-                    <button className="theme-toggle">🌙 Тёмная</button>
-                  </div>
-                </div>
-
-                {/* Playback settings */}
-
                 {/* Language */}
                 <div className="settings-card">
                   <div className="settings-card-header">

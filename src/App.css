@@ -695,6 +695,31 @@ ul,ol{list-style:none}
 .speaker-name{font-size:12px;font-weight:600;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .speaker-role{font-size:10px;color:var(--text3)}
 
+/* ===== SPEAKERS HOME - Large circular cards like Photo 1 ===== */
+.speakers-scroll-home{display:flex;gap:24px;overflow-x:auto;padding:8px 0 16px;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory}
+.speakers-scroll-home::-webkit-scrollbar{height:0}
+.speaker-card-home{flex-shrink:0;width:140px;text-align:center;cursor:pointer;scroll-snap-align:start;transition:transform .2s}
+.speaker-card-home:hover{transform:translateY(-6px)}
+.speaker-avatar-home{width:140px;height:140px;border-radius:50%;margin:0 auto 12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4);transition:all .3s;position:relative}
+.speaker-card-home:hover .speaker-avatar-home{box-shadow:0 8px 40px rgba(124,92,252,0.4);transform:scale(1.05)}
+.speaker-avatar-home img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.speaker-avatar-home-inner{position:relative;z-index:1;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.speaker-initials-home{font-size:36px;font-weight:700;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.speaker-name-home{font-size:14px;font-weight:700;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.speaker-role-home{font-size:12px;color:var(--text3)}
+
+/* ===== PLAYLISTS YOUTUBE STYLE ===== */
+.playlists-yt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px}
+.playlist-yt-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .2s}
+.playlist-yt-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.3)}
+.playlist-yt-thumb{position:relative;height:160px;overflow:hidden;background:var(--bg4)}
+.playlist-yt-thumb img{width:100%;height:100%;object-fit:cover}
+.playlist-yt-count{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.8);color:#fff;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.playlist-yt-info{padding:12px}
+.playlist-yt-title{font-size:14px;font-weight:700;margin-bottom:4px}
+.playlist-yt-meta{font-size:12px;color:var(--text3);margin-bottom:4px}
+.playlist-yt-link{font-size:12px;color:var(--accent);font-weight:500}
+
 .speakers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
 .speaker-card-lg{display:flex;align-items:center;gap:16px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:all .2s}
 .speaker-card-lg:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.3)}
@@ -729,6 +754,13 @@ ul,ol{list-style:none}
   .speaker-detail{flex-direction:column;align-items:center;text-align:center}
   .speaker-detail-avatar{width:120px;height:120px}
   .speaker-initials-detail{font-size:36px}
+  .speakers-scroll-home{gap:16px}
+  .speaker-card-home{width:110px}
+  .speaker-avatar-home{width:110px;height:110px}
+  .speaker-initials-home{font-size:28px}
+  .speaker-name-home{font-size:12px}
+  .playlists-yt-grid{grid-template-columns:1fr}
+  .playlist-yt-thumb{height:140px}
 }
 
 /* ===== RESPONSIVE ===== */
