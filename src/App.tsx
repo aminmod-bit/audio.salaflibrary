@@ -108,8 +108,6 @@ export default function App() {
   const [npView, setNpView] = useState<'main'|'lyrics'|'eq'>('main')
   const [ctxMenu, setCtxMenu] = useState<{x:number;y:number}|null>(null)
   const [eqPreset, setEqPreset] = useState('Без обработки')
-  const [aiPrompt, setAiPrompt] = useState('')
-  const [aiTrackCount, setAiTrackCount] = useState(20)
   const [waveSettingsOpen, setWaveSettingsOpen] = useState(false)
   const [waveMood, setWaveMood] = useState('Без настроения')
   const [themeOpen, setThemeOpen] = useState(false)
@@ -533,30 +531,38 @@ export default function App() {
               </>
             )}
 
-            {/* ═══ AI PLAYLIST ═══ */}
+            {/* ═══ PLAYLISTS ═══ */}
             {page === 'ai-playlist' && (
               <>
-                <div className="ai-page-header">
-                  <div className="section-badge" style={{marginBottom:12}}>{Ico.library} {T('playlist_badge')}</div>
-                  <h1 className="ai-page-title">{T('playlist_title')} <em>{T('playlist_title_italic')}</em><br/>{T('playlist_title_end')}</h1>
-                  <p className="ai-page-desc">{T('playlist_desc')}</p>
+                <h1 className="page-title" style={{marginBottom:20}}>Плейлисты</h1>
+                <div className="lib-tabs" style={{marginBottom:20}}>
+                  {['all','recent','mine'].map(t => (
+                    <button key={t} className={`lib-tab ${t==='all'?'active':''}`}>
+                      {{all:'Недавно добавленные',recent:'Плейлисты',mine:'Ваши'}[t]}
+                    </button>
+                  ))}
                 </div>
-                <div className="ai-input-card">
-                  <textarea className="ai-input" placeholder={T('playlist_placeholder')} value={aiPrompt} onChange={e => setAiPrompt(e.target.value.slice(0,200))} />
-                  <div className="ai-suggestions">
-                    {['Напоминания для namaz','Коран для медитации','Насхиды для дороги','Лекции о терпении','Дуа перед сном'].map(s => (
-                      <button key={s} className="ai-suggestion" onClick={() => setAiPrompt(s)}>💡 {s}</button>
-                    ))}
-                  </div>
-                  <div className="ai-input-footer" style={{marginTop:16}}>
-                    <div className="ai-track-count">
-                      <span className="ai-track-count-label">{T('playlist_records')}</span>
-                      {[20,30,40].map(n => (
-                        <button key={n} className={`ai-track-count-btn ${aiTrackCount===n?'active':''}`} onClick={() => setAiTrackCount(n)}>{n}</button>
-                      ))}
-                    </div>
-                    <button className="ai-generate-btn" onClick={() => { if(aiPrompt.trim()) { playTrack(audioData[0], audioData) } }}>{Ico.sparkles} {T('playlist_generate')}</button>
-                  </div>
+                <div className="playlists-yt-grid">
+                  {dailyPlaylists.map((pl, i) => {
+                    const demoThumbs = [
+                      'https://images.unsplash.com/photo-1564153986483-8fc5c2b3d7e5?w=400&h=225&fit=crop',
+                      'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=225&fit=crop',
+                      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=225&fit=crop',
+                    ]
+                    return (
+                      <div key={i} className="playlist-yt-card" onClick={() => { setSelectedDailyPlaylist(i); goto('daily-playlist') }}>
+                        <div className="playlist-yt-thumb" style={{background: pl.gradient}}>
+                          <img src={demoThumbs[i]} alt={pl.name} onError={(e) => { (e.target as HTMLImageElement).style.display='none' }} />
+                          <div className="playlist-yt-count">{pl.tracks.length || 3} видео</div>
+                        </div>
+                        <div className="playlist-yt-info">
+                          <div className="playlist-yt-title">{pl.name}</div>
+                          <div className="playlist-yt-meta">Ограниченный доступ · Плейлист</div>
+                          <div className="playlist-yt-link">Посмотреть весь плейлист</div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </>
             )}
