@@ -1175,7 +1175,7 @@ function LectureList({ tracks, currentLecture, isPlaying, onPlay }: {
               <div className="lecture-thumb" style={{background: categories.find(c=>c.id===t.categoryId)?.gradient || '#333'}}>{t.icon}</div>
               <div className="lecture-title-info">
                 <div className="lecture-title">{t.title}</div>
-                <div className="track-scholar">{t.scholar}</div>
+                <div className="lecture-scholar">{t.scholar}</div>
               </div>
             </div>
             <div className="lecture-duration">{t.duration}</div>
