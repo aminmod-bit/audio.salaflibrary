@@ -61,14 +61,6 @@ function fmtTime(s: number): string {
   const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = Math.floor(s%60)
   return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}` : `${m}:${String(sec).padStart(2,'0')}`
 }
-function getGreeting(): string {
-  const h = new Date().getHours()
-  if (h < 6) return 'Доброй ночи'
-  if (h < 12) return 'Доброе утро'
-  if (h < 18) return 'Добрый день'
-  return 'Добрый вечер'
-}
-
 function getInitials(name: string): string {
   return name.replace(/^Шейх\s+/, '').split(' ').map(w => w[0]).join('').slice(0, 2)
 }
@@ -133,6 +125,7 @@ export default function App() {
   const [scholarSearch, setScholarSearch] = useState('')
   const [scholarRoleFilter, setScholarRoleFilter] = useState<string>('all')
   const [playbackSpeed, setPlaybackSpeed] = useState(getAudioSpeed())
+  const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
   const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(null)
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState(0)
   const [selectedSeries] = useState<any>(null)
@@ -502,13 +495,8 @@ export default function App() {
           <button className={`sidebar-nav-item ${page==='playlists'?'active':''}`} onClick={() => goto('playlists')}>{Ico.library} {T('nav_playlist')}</button>
           <button className={`sidebar-nav-item ${page==='favorites'?'active':''}`} onClick={() => goto('favorites')}>{Ico.heart} {T('nav_favorites')}</button>
           <button className={`sidebar-nav-item ${page==='listen-later'?'active':''}`} onClick={() => goto('listen-later')}>{Ico.clock} Слушать позже</button>
+          <button className={`sidebar-nav-item ${page==='admin'?'active':''}`} onClick={() => goto('admin')}>{Ico.upload} Админ</button>
         </nav>
-        <div className="sidebar-pin">
-          <div className="sidebar-pin-label">{T('pinned')}</div>
-          <nav className="sidebar-nav">
-            <button className={`sidebar-nav-item ${page==='admin'?'active':''}`} onClick={() => goto('admin')}>{Ico.upload} Админ</button>
-          </nav>
-        </div>
 
       </aside>
 
@@ -522,7 +510,6 @@ export default function App() {
             {/* ═══ HOME ═══ */}
             {page === 'home' && !activeCategory && (
               <>
-                <div className="greeting"><span className="greeting-icon">✨</span> {T(`greeting_${getGreeting().includes('утро')?'morning':getGreeting().includes('день')?'afternoon':getGreeting().includes('вечер')?'evening':'night'}`)}, {T('greeting_suffix')}</div>
                 <h1 className="page-title">{T('hero_title_line1')} <em>{T('hero_title_italic')}</em>,<br/>{T('hero_title_line2')}</h1>
 
                 <TiltSpotlightCard
@@ -686,7 +673,6 @@ export default function App() {
                       {{all:'Все',lectures:'Уроки',series:'Серии',scholars:'Лекторы'}[f]}
                     </button>
                   ))}
-                  <div style={{borderLeft:'1px solid var(--border)',margin:'0 4px'}} />
                   {['all','short','medium','long','very-long'].map(d => (
                     <button key={d} onClick={() => setDurationFilter(d)}
                       style={{padding:'6px 12px',borderRadius:100,fontSize:12,fontWeight:500,border:'1px solid var(--border)',cursor:'pointer',
@@ -1267,16 +1253,26 @@ export default function App() {
               <button className="player-extra-btn" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCtxMenu({x: Math.min(rect.left, window.innerWidth - 240), y: Math.max(8, rect.top - 320)}) }}>{Ico.dots}</button>
             </div>
             {/* Speed control */}
-            <div style={{display:'flex',alignItems:'center',gap:4}}>
-              {[0.75, 1, 1.25, 1.5, 2].map(s => (
-                <button key={s} onClick={() => setPlaybackSpeed(s)}
-                  style={{padding:'2px 6px',borderRadius:4,fontSize:10,fontWeight:600,border:'1px solid',cursor:'pointer',
-                    background: playbackSpeed === s ? 'var(--accent)' : 'transparent',
-                    color: playbackSpeed === s ? '#fff' : 'var(--text3)',
-                    borderColor: playbackSpeed === s ? 'var(--accent)' : 'var(--border)'}}>
-                  {s}x
-                </button>
-              ))}
+            <div style={{position:'relative'}}>
+              <button className="player-extra-btn" onClick={() => setSpeedMenuOpen(!speedMenuOpen)}
+                style={{fontSize:11,fontWeight:700,minWidth:36}}>
+                {playbackSpeed}x
+              </button>
+              {speedMenuOpen && (
+                <>
+                  <div style={{position:'fixed',inset:0,zIndex:299}} onClick={() => setSpeedMenuOpen(false)} />
+                  <div style={{position:'absolute',bottom:'100%',right:0,marginBottom:8,background:'#18181c',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:6,zIndex:300, minWidth:80}}>
+                    {[0.75, 1, 1.25, 1.5, 2].map(s => (
+                      <button key={s} onClick={() => { setPlaybackSpeed(s); setSpeedMenuOpen(false) }}
+                        style={{display:'block',width:'100%',padding:'8px 12px',borderRadius:6,fontSize:13,fontWeight:500,textAlign:'left',cursor:'pointer',border:'none',
+                          background: playbackSpeed === s ? '#7c5cfc' : 'transparent',
+                          color: playbackSpeed === s ? '#fff' : '#a0a0a8'}}>
+                        {s}x
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
             {/* Sleep timer */}
             <div style={{position:'relative'}}>
