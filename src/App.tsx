@@ -91,9 +91,14 @@ function getSpeakerGradient(id: string): string {
 
 type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'playlists' | 'rooms' | 'daily-playlist' | 'scholarsData' | 'scholar' | 'admin' | 'series-page' | 'listen-later'
 
+const validPages: Page[] = ['home','search','library','favorites','playlists','admin','scholarsData','series-page','listen-later']
+
 /* ─── App ─── */
 export default function App() {
-  const [page, setPage] = useState<Page>('home')
+  const [page, setPage] = useState<Page>(() => {
+    const hash = window.location.hash.replace('#/', '').replace('#', '') as Page
+    return hash && validPages.includes(hash) ? hash : 'home'
+  })
   const [activeCategory, setActiveCategory] = useState<Category | null>(null)
   const [currentLecture, setCurrentLecture] = useState<Lecture | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -145,6 +150,18 @@ export default function App() {
   const [durationFilter, setDurationFilter] = useState<string>('all')
   const scrollRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Listen for URL hash changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#/', '').replace('#', '') as Page
+      if (hash && validPages.includes(hash)) {
+        setPage(hash)
+      }
+    }
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
 
   // Listen for data updates from admin panel
   useEffect(() => {
@@ -263,7 +280,7 @@ export default function App() {
     { name:'Под настроение', desc:'Подобрано под твой обычный вайб', icon:'🎶', gradient: catBg(categories[2]), lecturesData: lecturesData.slice(0,3) },
   ]
 
-  const goto = (p: Page) => { setPage(p); setNowPlaying(false); scrollRef.current?.scrollTo(0,0) }
+  const goto = (p: Page) => { setPage(p); window.location.hash = '#/' + p; setNowPlaying(false); scrollRef.current?.scrollTo(0,0) }
   const T = (key: string) => t(lang as Lang, key)
 
   const filteredLectures = searchQuery.trim()
@@ -489,7 +506,7 @@ export default function App() {
         <div className="sidebar-pin">
           <div className="sidebar-pin-label">{T('pinned')}</div>
           <nav className="sidebar-nav">
-            {/* Admin link - hidden in production */}
+            <button className={`sidebar-nav-item ${page==='admin'?'active':''}`} onClick={() => goto('admin')}>{Ico.upload} Админ</button>
           </nav>
         </div>
 
