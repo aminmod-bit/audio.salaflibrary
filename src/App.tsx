@@ -141,6 +141,13 @@ export default function App() {
   const [autoplayNext, setAutoplayNext] = useState(() => localStorage.getItem('salaf-audio-autoplay') === 'true')
   const [searchFilter, setSearchFilter] = useState<string>('all')
   const [durationFilter, setDurationFilter] = useState<string>('all')
+  const [abPointA, setAbPointA] = useState<number | null>(null)
+  const [abPointB, setAbPointB] = useState<number | null>(null)
+  const [abEnabled, setAbEnabled] = useState(false)
+  const [abError, setAbError] = useState('')
+  const abPointARef = useRef<number | null>(null)
+  const abPointBRef = useRef<number | null>(null)
+  const abEnabledRef = useRef(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -276,6 +283,90 @@ export default function App() {
   const goto = (p: Page) => { setPage(p); window.location.hash = '#/' + p; setNowPlaying(false); scrollRef.current?.scrollTo(0,0) }
   const T = (key: string) => t(lang as Lang, key)
 
+  // A-B Repeat helpers
+  const loadAbRepeat = (lessonId: number) => {
+    try {
+      const data = JSON.parse(localStorage.getItem('salaf-audio-ab-repeat') || '{}')
+      const key = `lesson-${lessonId}`
+      if (data[key]) {
+        setAbPointA(data[key].a)
+        setAbPointB(data[key].b)
+        setAbEnabled(data[key].enabled || false)
+        abPointARef.current = data[key].a
+        abPointBRef.current = data[key].b
+        abEnabledRef.current = data[key].enabled || false
+      } else {
+        setAbPointA(null)
+        setAbPointB(null)
+        setAbEnabled(false)
+        abPointARef.current = null
+        abPointBRef.current = null
+        abEnabledRef.current = false
+      }
+    } catch {
+      setAbPointA(null)
+      setAbPointB(null)
+      setAbEnabled(false)
+      abPointARef.current = null
+      abPointBRef.current = null
+      abEnabledRef.current = false
+    }
+    setAbError('')
+  }
+
+  const setPointA = () => {
+    if (!audioRef.current) return
+    const time = audioRef.current.currentTime
+    setAbPointA(time)
+    abPointARef.current = time
+    setAbError('')
+    if (abPointB !== null && time >= abPointB) {
+      setAbError('Точка A должна быть раньше B')
+      setAbEnabled(false)
+      abEnabledRef.current = false
+    } else if (abPointB !== null) {
+      setAbEnabled(true)
+      abEnabledRef.current = true
+    }
+  }
+
+  const setPointB = () => {
+    if (!audioRef.current) return
+    const time = audioRef.current.currentTime
+    if (abPointA !== null && time <= abPointA) {
+      setAbError('Точка B должна быть позже A')
+      setAbEnabled(false)
+      abEnabledRef.current = false
+      return
+    }
+    setAbPointB(time)
+    abPointBRef.current = time
+    setAbError('')
+    if (abPointA !== null) {
+      setAbEnabled(true)
+      abEnabledRef.current = true
+    }
+  }
+
+  const resetAbRepeat = () => {
+    setAbPointA(null)
+    setAbPointB(null)
+    setAbEnabled(false)
+    abPointARef.current = null
+    abPointBRef.current = null
+    abEnabledRef.current = false
+    setAbError('')
+    if (currentLecture) {
+      try {
+        const data = JSON.parse(localStorage.getItem('salaf-audio-ab-repeat') || '{}')
+        delete data[`lesson-${currentLecture.id}`]
+        localStorage.setItem('salaf-audio-ab-repeat', JSON.stringify(data))
+      } catch {}
+    }
+  }
+
+  const fmtAbTime = (t: number | null) => t !== null ? fmtTime(t) : '—'
+
   const filteredLectures = searchQuery.trim()
     ? lecturesData.filter(l => {
         const q = searchQuery.toLowerCase()
@@ -302,6 +393,7 @@ export default function App() {
       return
     }
     setCurrentLecture(lecture); setIsPlaying(true); setProgress(0); setCurrentTime(0)
+    loadAbRepeat(lecture.id)
     const listToUse = list || filteredLectures
     const idx = listToUse.findIndex(t => t.id === lecture.id)
     if (idx >= 0) setQueue(listToUse.slice(idx))
@@ -350,6 +442,12 @@ export default function App() {
       if (audio.duration) {
         setProgress(audio.currentTime / audio.duration)
         setCurrentTime(audio.currentTime)
+        // A-B Loop using refs
+        if (abEnabledRef.current && abPointARef.current !== null && abPointBRef.current !== null) {
+          if (audio.currentTime >= abPointBRef.current) {
+            audio.currentTime = abPointARef.current
+          }
+        }
         // Save progress every 5 seconds
         progressSaveCounter++
         if (progressSaveCounter % 5 === 0 && currentLecture) {
@@ -582,9 +680,9 @@ export default function App() {
                   <div className="ai-banner glow-card" style={{margin:0,border:'none'}} onClick={() => goto('playlists')}>
                     <div className="ai-banner-icon">{Ico.sparkles}</div>
                     <div>
-                      <div className="ai-banner-label">Плейлист</div>
-                      <div className="ai-banner-title">Опиши настроение — соберу плейлист</div>
-                      <div className="ai-banner-desc">Жанры, артисты и эпохи на русском и английском за один шаг.</div>
+                      <div className="ai-banner-label">Подборка</div>
+                      <div className="ai-banner-title">Подборки по темам</div>
+                      <div className="ai-banner-desc">Выбирай уроки по акыде, таухиду, фикху, хадисам и другим полезным направлениям.</div>
                     </div>
                     <div className="ai-banner-right">
                       <span className="ai-banner-link">Попробовать {Ico.chevRight}</span>
@@ -594,7 +692,7 @@ export default function App() {
 
                 {/* Playlists Section - YouTube style like Photo 4 */}
                 <div className="section-header" style={{marginTop:48,justifyContent:'space-between'}}>
-                  <h3 className="section-title" style={{margin:0}}>Плейлисты</h3>
+                  <h3 className="section-title" style={{margin:0}}>Подборки по темам</h3>
                   <button className="hero-btn hero-btn-secondary" onClick={() => goto('library')}>Посмотреть все</button>
                 </div>
                 <div className="playlists-yt-grid">
@@ -612,8 +710,8 @@ export default function App() {
                         </div>
                         <div className="playlist-yt-info">
                           <div className="playlist-yt-title">{pl.name}</div>
-                          <div className="playlist-yt-meta">Ограниченный доступ · Плейлист</div>
-                          <div className="playlist-yt-link">Посмотреть весь плейлист</div>
+                          <div className="playlist-yt-meta">Подборка уроков</div>
+                          <div className="playlist-yt-link">Открыть</div>
                         </div>
                       </div>
                     )
@@ -774,11 +872,11 @@ export default function App() {
             {/* ═══ PLAYLISTS ═══ */}
             {page === 'playlists' && (
               <>
-                <h1 className="page-title" style={{marginBottom:20}}>Плейлисты</h1>
+                <h1 className="page-title" style={{marginBottom:20}}>Подборки</h1>
                 <div className="lib-tabs" style={{marginBottom:20}}>
                   {['all','recent','mine'].map(t => (
                     <button key={t} className={`lib-tab ${t==='all'?'active':''}`}>
-                      {{all:'Недавно добавленные',recent:'Плейлисты',mine:'Ваши'}[t]}
+                      {{all:'Недавно добавленные',recent:'Подборки',mine:'Мои'}[t]}
                     </button>
                   ))}
                 </div>
@@ -797,8 +895,8 @@ export default function App() {
                         </div>
                         <div className="playlist-yt-info">
                           <div className="playlist-yt-title">{pl.name}</div>
-                          <div className="playlist-yt-meta">Ограниченный доступ · Плейлист</div>
-                          <div className="playlist-yt-link">Посмотреть весь плейлист</div>
+                          <div className="playlist-yt-meta">Подборка уроков</div>
+                          <div className="playlist-yt-link">Открыть</div>
                         </div>
                       </div>
                     )
@@ -945,7 +1043,7 @@ export default function App() {
                     <div className="settings-card-icon">{Ico.close}</div>
                     <div className="settings-card-title">Скрытые из рекомендаций</div>
                   </div>
-                  <div className="settings-card-desc">Не попадают в волну, дневные плейлисты и AI-подборки.</div>
+                  <div className="settings-card-desc">Не попадают в подборки и рекомендации.</div>
                 </div>
 
                 {/* Account */}
@@ -1030,7 +1128,7 @@ export default function App() {
                     {dailyPlaylists[selectedDailyPlaylist].icon}
                   </div>
                   <div className="daily-playlist-info">
-                    <div className="page-eyebrow">Плейлист дня · {dailyPlaylists[selectedDailyPlaylist].name}</div>
+                    <div className="page-eyebrow">Подборка · {dailyPlaylists[selectedDailyPlaylist].name}</div>
                     <h1 className="page-title">{dailyPlaylists[selectedDailyPlaylist].name}</h1>
                     <p className="page-subtitle">{dailyPlaylists[selectedDailyPlaylist].desc}</p>
                     <div className="daily-playlist-count">50 треков</div>
@@ -1238,6 +1336,28 @@ export default function App() {
               <button className="player-btn" onClick={() => { if (audioRef.current) audioRef.current.currentTime += 10 }} style={{fontSize:11,fontWeight:700}}>+10</button>
               <button className={`player-btn ${repeated?'active':''}`} onClick={() => setRepeated(r => !r)}>{Ico.repeat}</button>
             </div>
+            {/* A-B Repeat controls */}
+            <div style={{display:'flex',alignItems:'center',gap:6,marginTop:8,justifyContent:'center'}}>
+              <button onClick={setPointA} style={{padding:'3px 8px',borderRadius:4,fontSize:11,fontWeight:600,border:'1px solid',cursor:'pointer',
+                background: abPointA !== null ? '#7c5cfc' : 'transparent',
+                color: abPointA !== null ? '#fff' : 'var(--text3)',
+                borderColor: abPointA !== null ? '#7c5cfc' : 'var(--border)'}}>
+                A:{fmtAbTime(abPointA)}
+              </button>
+              <button onClick={setPointB} style={{padding:'3px 8px',borderRadius:4,fontSize:11,fontWeight:600,border:'1px solid',cursor:'pointer',
+                background: abPointB !== null ? '#7c5cfc' : 'transparent',
+                color: abPointB !== null ? '#fff' : 'var(--text3)',
+                borderColor: abPointB !== null ? '#7c5cfc' : 'var(--border)'}}>
+                B:{fmtAbTime(abPointB)}
+              </button>
+              {abEnabled && (
+                <span style={{fontSize:10,color:'#22c55e',fontWeight:600}}>AB ✓</span>
+              )}
+              {(abPointA !== null || abPointB !== null) && (
+                <button onClick={resetAbRepeat} style={{padding:'3px 6px',borderRadius:4,fontSize:11,border:'1px solid var(--border)',cursor:'pointer',background:'transparent',color:'var(--text3)'}}>✕</button>
+              )}
+            </div>
+            {abError && <div style={{fontSize:10,color:'#ef4444',textAlign:'center',marginTop:4}}>{abError}</div>}
             <div className="player-progress">
               <span className="player-time">{fmtTime(currentTime)}</span>
               <div className="player-progress-bar" onClick={handleProgressClick} onMouseDown={handleDragStart('progress')}>
