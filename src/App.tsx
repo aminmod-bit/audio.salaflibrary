@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { categories, lectures } from './data'
+import { categories, getLectures, getScholars } from './data'
 import type { Lecture, Category, Scholar } from './data'
 import TiltSpotlightCard from './components/effects/TiltSpotlightCard'
 import CursorGlow from './components/effects/CursorGlow'
@@ -88,7 +88,7 @@ function getSpeakerGradient(id: string): string {
   return gradients[id] || 'linear-gradient(135deg, #333, #555)'
 }
 
-type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'playlists' | 'rooms' | 'daily-playlist' | 'scholars' | 'scholar' | 'admin'
+type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'playlists' | 'rooms' | 'daily-playlist' | 'scholarsData' | 'scholar' | 'admin'
 
 /* ─── App ─── */
 export default function App() {
@@ -121,12 +121,23 @@ export default function App() {
     return 'ru'
   })
   const [selectedDailyPlaylist, setSelectedDailyPlaylist] = useState<number | null>(null)
-  const [scholars, setScholars] = useState<Scholar[]>([])
+  const [scholarsData, setScholarsData] = useState<Scholar[]>(getScholars())
+  const [lecturesData, setLecturesData] = useState<Lecture[]>(getLectures())
   const [selectedScholar, setselectedScholar] = useState<Scholar | null>(null)
   const [scholarSearch, setScholarSearch] = useState('')
   const [scholarRoleFilter, setScholarRoleFilter] = useState<string>('all')
   const scrollRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Listen for data updates from admin panel
+  useEffect(() => {
+    const handleUpdate = () => {
+      setScholarsData(getScholars())
+      setLecturesData(getLectures())
+    }
+    window.addEventListener('salaf-audio-data-updated', handleUpdate)
+    return () => window.removeEventListener('salaf-audio-data-updated', handleUpdate)
+  }, [])
 
   /* Theme & Language */
   const setTheme = (t: string) => {
@@ -144,25 +155,21 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', currentTheme)
   }, [currentTheme])
 
-  useEffect(() => {
-    fetch('/data/scholars.json').then(r => r.json()).then((data: Scholar[]) => setScholars(data)).catch(() => {})
-  }, [])
-
   const trackBg = (t: Lecture) => categories.find(c => c.id === t.categoryId)?.gradient || 'linear-gradient(135deg,#333,#555)'
   const catBg = (c: Category) => c.gradient
 
   const dailyPlaylists = [
-    { name:'Знакомое', desc:'Любимые лекторы и близкие к ним новинки', icon:'📖', gradient: catBg(categories[0]), lectures: lectures.slice(0,8) },
-    { name:'Открытия', desc:'То, что ты ещё не слышал, но точно зайдёт', icon:'📝', gradient: catBg(categories[1]), lectures: lectures.slice(0,3) },
-    { name:'Под настроение', desc:'Подобрано под твой обычный вайб', icon:'🎶', gradient: catBg(categories[2]), lectures: lectures.slice(0,3) },
+    { name:'Знакомое', desc:'Любимые лекторы и близкие к ним новинки', icon:'📖', gradient: catBg(categories[0]), lecturesData: lecturesData.slice(0,8) },
+    { name:'Открытия', desc:'То, что ты ещё не слышал, но точно зайдёт', icon:'📝', gradient: catBg(categories[1]), lecturesData: lecturesData.slice(0,3) },
+    { name:'Под настроение', desc:'Подобрано под твой обычный вайб', icon:'🎶', gradient: catBg(categories[2]), lecturesData: lecturesData.slice(0,3) },
   ]
 
   const goto = (p: Page) => { setPage(p); setNowPlaying(false); scrollRef.current?.scrollTo(0,0) }
   const T = (key: string) => t(lang as Lang, key)
 
   const filteredLectures = searchQuery.trim()
-    ? lectures.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.scholar.toLowerCase().includes(searchQuery.toLowerCase()))
-    : lectures
+    ? lecturesData.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.scholar.toLowerCase().includes(searchQuery.toLowerCase()))
+    : lecturesData
 
   const toggleLike = (id: string | number) => setLiked(prev => { const n = new Set(prev); if (n.has(id)) { n.delete(id) } else { n.add(id) }; return n })
 
@@ -388,12 +395,12 @@ export default function App() {
                     <h2 className="hero-card-title">{T('hero_subtitle')} <em>{T('hero_subtitle_italic')}</em> {T('hero_subtitle_end')}</h2>
                     <p className="hero-card-desc">{T('hero_desc')}</p>
                     <div className="hero-card-actions">
-                      <button className="hero-btn hero-btn-primary" onClick={() => { playLecture(lectures[0], lectures) }}>▶ {T('btn_continue')}</button>
+                      <button className="hero-btn hero-btn-primary" onClick={() => { playLecture(lecturesData[0], lecturesData) }}>▶ {T('btn_continue')}</button>
                       <button className="hero-btn hero-btn-secondary" onClick={() => goto('search')}>🔎 {T('btn_catalog')}</button>
                       <button className="hero-btn hero-btn-secondary" onClick={() => setWaveSettingsOpen(true)}>⚙ {T('btn_configure')}</button>
                     </div>
-                    <div className="hero-lectures">
-                      {lectures.slice(0, 6).map(t => (
+                    <div className="hero-lecturesData">
+                      {lecturesData.slice(0, 6).map(t => (
                         <div key={t.id} className={`hero-lecture ${currentLecture?.id===t.id?'playing':''}`} onClick={() => playLecture(t)}>
                           <div className="hero-lecture-icon" style={{background: trackBg(t)}}>{t.icon}</div>
                           <div>
@@ -452,13 +459,13 @@ export default function App() {
                   })}
                 </div>
 
-                {/* scholars Section - Horizontal scroll like Photo 1 */}
+                {/* scholarsData Section - Horizontal scroll like Photo 1 */}
                 <div className="section-header" style={{marginTop:48,justifyContent:'space-between'}}>
                   <h3 className="section-title" style={{margin:0}}>Популярные лекторы</h3>
-                  <button className="hero-btn hero-btn-secondary" onClick={() => goto('scholars')}>Показать все</button>
+                  <button className="hero-btn hero-btn-secondary" onClick={() => goto('scholarsData')}>Показать все</button>
                 </div>
-                <div className="scholars-scroll-home">
-                  {scholars.slice(0, 8).map((s, i) => {
+                <div className="scholarsData-scroll-home">
+                  {scholarsData.slice(0, 8).map((s, i) => {
                     const demoImages = [
                       'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
                       'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
@@ -561,7 +568,7 @@ export default function App() {
                       <div key={i} className="playlist-yt-card" onClick={() => { setSelectedDailyPlaylist(i); goto('daily-playlist') }}>
                         <div className="playlist-yt-thumb" style={{background: pl.gradient}}>
                           <img src={demoThumbs[i]} alt={pl.name} onError={(e) => { (e.target as HTMLImageElement).style.display='none' }} />
-                          <div className="playlist-yt-count">{pl.lectures.length || 3} видео</div>
+                          <div className="playlist-yt-count">{pl.lecturesData.length || 3} видео</div>
                         </div>
                         <div className="playlist-yt-info">
                           <div className="playlist-yt-title">{pl.name}</div>
@@ -618,7 +625,7 @@ export default function App() {
                 )}
                 {libTab === 'albums' && (
                   liked.size > 0 ? (
-                    <LectureList tracks={lectures.filter(t => liked.has(t.id))} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
+                    <LectureList tracks={lecturesData.filter(t => liked.has(t.id))} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
                   ) : (
                     <div className="lib-empty">
                       <div className="lib-empty-icon">❤️</div>
@@ -654,7 +661,7 @@ export default function App() {
                     <div className="cat-header-name">{activeCategory.name}</div>
                     <div className="cat-header-count">{activeCategory.count} аудио записей</div>
                     <div className="cat-header-actions">
-                      <button className="cat-play-btn" onClick={() => { const tracks = lectures.filter(t=>t.categoryId===activeCategory.id); playLecture(tracks[0], tracks) }}>▶ Слушать</button>
+                      <button className="cat-play-btn" onClick={() => { const tracks = lecturesData.filter(t=>t.categoryId===activeCategory.id); playLecture(tracks[0], tracks) }}>▶ Слушать</button>
                       <button className="cat-icon-btn" onClick={() => toggleLike(activeCategory.id)}>{liked.has(activeCategory.id) ? Ico.heartFill : Ico.heart}</button>
                       <button className="cat-icon-btn">{Ico.radio}</button>
                       <button className="cat-icon-btn">{Ico.share}</button>
@@ -662,7 +669,7 @@ export default function App() {
                   </div>
                 </div>
                 <h3 className="section-title" style={{marginBottom:12}}>Популярные треки</h3>
-                <LectureList tracks={lectures.filter(t=>t.categoryId===activeCategory.id)} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
+                <LectureList tracks={lecturesData.filter(t=>t.categoryId===activeCategory.id)} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
               </>
             )}
 
@@ -678,7 +685,7 @@ export default function App() {
                   </div>
                 </div>
                 {liked.size > 0 ? (
-                  <LectureList tracks={lectures.filter(t => liked.has(t.id))} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
+                  <LectureList tracks={lecturesData.filter(t => liked.has(t.id))} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
                 ) : (
                   <div className="lib-empty">
                     <div className="lib-empty-icon">❤️</div>
@@ -803,17 +810,17 @@ export default function App() {
                     <p className="page-subtitle">{dailyPlaylists[selectedDailyPlaylist].desc}</p>
                     <div className="daily-playlist-count">50 треков</div>
                     <div className="daily-playlist-actions">
-                      <button className="cat-play-btn" onClick={() => playLecture(dailyPlaylists[selectedDailyPlaylist].lectures[0], dailyPlaylists[selectedDailyPlaylist].lectures)}>▶ Слушать</button>
+                      <button className="cat-play-btn" onClick={() => playLecture(dailyPlaylists[selectedDailyPlaylist].lecturesData[0], dailyPlaylists[selectedDailyPlaylist].lecturesData)}>▶ Слушать</button>
                       <button className="cat-icon-btn">{Ico.library} В библиотеку</button>
                     </div>
                   </div>
                 </div>
-                <LectureList tracks={dailyPlaylists[selectedDailyPlaylist].lectures} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
+                <LectureList tracks={dailyPlaylists[selectedDailyPlaylist].lecturesData} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
               </>
             )}
 
-            {/* ═══ scholars LIST ═══ */}
-            {page === 'scholars' && (
+            {/* ═══ scholarsData LIST ═══ */}
+            {page === 'scholarsData' && (
               <>
                 <div className="page-eyebrow">Коллекция</div>
                 <h1 className="page-title" style={{marginBottom:20}}>Учёные, лекторы и чтецы</h1>
@@ -828,8 +835,8 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <div className="scholars-grid">
-                  {scholars
+                <div className="scholarsData-grid">
+                  {scholarsData
                     .filter(s => scholarRoleFilter === 'all' || s.role === scholarRoleFilter)
                     .filter(s => !scholarSearch.trim() || s.name.toLowerCase().includes(scholarSearch.toLowerCase()) || s.nameAr.includes(scholarSearch))
                     .map(s => (
@@ -853,7 +860,7 @@ export default function App() {
             {/* ═══ SINGLE scholar ═══ */}
             {page === 'scholar' && selectedScholar && (
               <>
-                <button className="back-btn" onClick={() => goto('scholars')}>{Ico.back} Назад</button>
+                <button className="back-btn" onClick={() => goto('scholarsData')}>{Ico.back} Назад</button>
                 <div className="scholar-detail">
                   <div className="scholar-detail-avatar" style={{background: getSpeakerGradient(selectedScholar.id)}}>
                     {selectedScholar.imageUrl ? <img src={selectedScholar.imageUrl} alt={selectedScholar.name} /> : <span className="scholar-initials-detail">{getInitials(selectedScholar.name)}</span>}
@@ -867,8 +874,8 @@ export default function App() {
                   </div>
                 </div>
                 <h3 className="section-title" style={{margin:'24px 0 12px'}}>Уроки</h3>
-                {lectures.filter(t => t.scholarId === selectedScholar.id).length > 0 ? (
-                  <LectureList tracks={lectures.filter(t => t.scholarId === selectedScholar.id)} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
+                {lecturesData.filter(t => t.scholarId === selectedScholar.id).length > 0 ? (
+                  <LectureList tracks={lecturesData.filter(t => t.scholarId === selectedScholar.id)} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
                 ) : (
                   <div className="lib-empty">
                     <div className="lib-empty-icon">📚</div>

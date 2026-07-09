@@ -18,6 +18,7 @@ export interface Lecture {
   src: string
   cover?: string
   tags?: string[]
+  seriesId?: string
 }
 
 export interface Scholar {
@@ -31,6 +32,15 @@ export interface Scholar {
   tags: string[]
   sourceUrl: string
   imageCredit: string
+}
+
+export interface Series {
+  id: string
+  name: string
+  description: string
+  cover?: string
+  scholarId?: string
+  tags?: string[]
 }
 
 export interface Playlist {
@@ -47,7 +57,49 @@ export const categories: Category[] = [
   { id: 'reminders', name: 'Напоминания', icon: '💡', count: 0, color: '#bc6c25', gradient: 'linear-gradient(135deg, #606c38, #bc6c25)' },
 ]
 
-export const lectures: Lecture[] = [
+// Load from localStorage override or use default
+function loadFromStorage<T>(key: string, defaultData: T): T {
+  try {
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      return JSON.parse(stored) as T
+    }
+  } catch {}
+  return defaultData
+}
+
+export function getLectures(): Lecture[] {
+  return loadFromStorage<Lecture[]>('salaf-admin-lectures', defaultLectures)
+}
+
+export function getScholars(): Scholar[] {
+  return loadFromStorage<Scholar[]>('salaf-admin-scholars', defaultScholars)
+}
+
+export function getSeries(): Series[] {
+  return loadFromStorage<Series[]>('salaf-admin-series', defaultSeries)
+}
+
+export function saveLectures(lectures: Lecture[]): void {
+  localStorage.setItem('salaf-admin-lectures', JSON.stringify(lectures))
+  window.dispatchEvent(new Event('salaf-audio-data-updated'))
+}
+
+export function saveScholars(scholars: Scholar[]): void {
+  localStorage.setItem('salaf-admin-scholars', JSON.stringify(scholars))
+  window.dispatchEvent(new Event('salaf-audio-data-updated'))
+}
+
+export function saveSeries(series: Series[]): void {
+  localStorage.setItem('salaf-admin-series', JSON.stringify(series))
+  window.dispatchEvent(new Event('salaf-audio-data-updated'))
+}
+
+const defaultScholars: Scholar[] = []
+
+const defaultSeries: Series[] = []
+
+const defaultLectures: Lecture[] = [
   {
     id: 1,
     title: 'Открытие Палестины — Часть 1',
@@ -83,5 +135,9 @@ export const lectures: Lecture[] = [
   },
 ]
 
-// Legacy alias for backward compatibility
+export const lectures = getLectures()
+export const scholars = getScholars()
+export const series = getSeries()
+
+// Legacy alias
 export const audioData = lectures
