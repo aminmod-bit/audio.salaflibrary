@@ -1574,7 +1574,7 @@ export default function App() {
                 style={{color: currentLecture && liked.has(currentLecture.id) ? 'var(--accent)' : undefined}}>
                 {currentLecture && liked.has(currentLecture.id) ? Ico.heartFill : Ico.heart}
               </button>
-              <button className={`np-top-action ${queueOpen?'active':''}`} onClick={() => setQueueOpen(true)} title="Очередь">{Ico.list}</button>
+              <button className={`np-top-action ${npView==='lyrics'?'active':''}`} onClick={() => setNpView(npView==='lyrics'?'main':'lyrics')} title="Текст/Транскрипт">{Ico.mic}</button>
             </div>
           </div>
 
