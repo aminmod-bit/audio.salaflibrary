@@ -617,19 +617,19 @@ export default function App() {
                         }
                       }}>▶ {T('btn_continue')}</button>
                     </div>
-                    {/* Lecture cards grid */}
-                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginTop:20}}>
-                      {lecturesData.slice(0, 3).map(t => (
+                    {/* Lecture cards - horizontal scroll */}
+                    <div style={{display:'flex',gap:12,overflowX:'auto',padding:'12px 0',marginTop:20}}>
+                      {lecturesData.slice(0, 6).map(t => (
                         <div key={t.id} onClick={() => playLecture(t)}
-                          style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,overflow:'hidden',cursor:'pointer',transition:'all .2s'}}
-                          onMouseEnter={e => (e.currentTarget.style.borderColor='rgba(255,255,255,0.15)')}
-                          onMouseLeave={e => (e.currentTarget.style.borderColor='rgba(255,255,255,0.08)')}>
-                          <div style={{height:80,background:trackBg(t),display:'flex',alignItems:'center',justifyContent:'center',fontSize:28}}>
+                          style={{flexShrink:0,width:180,background:trackBg(t),borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'all .2s'}}
+                          onMouseEnter={e => (e.currentTarget.style.transform='translateY(-4px)')}
+                          onMouseLeave={e => (e.currentTarget.style.transform='none')}>
+                          <div style={{height:140,display:'flex',alignItems:'center',justifyContent:'center',fontSize:48}}>
                             {t.coverImage ? <img src={t.coverImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} /> : t.icon}
                           </div>
-                          <div style={{padding:'8px 10px'}}>
-                            <div style={{fontSize:12,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title}</div>
-                            <div style={{fontSize:10,color:'var(--text3)',marginTop:2}}>{t.scholar || 'Лектор'}</div>
+                          <div style={{padding:'10px 12px',background:'rgba(0,0,0,0.3)'}}>
+                            <div style={{fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title}</div>
+                            <div style={{fontSize:11,color:'rgba(255,255,255,0.7)',marginTop:2}}>{t.scholar || 'Лектор'}</div>
                           </div>
                         </div>
                       ))}
