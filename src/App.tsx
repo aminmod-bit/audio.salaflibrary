@@ -608,7 +608,7 @@ export default function App() {
             {/* ═══ HOME ═══ */}
             {page === 'home' && !activeCategory && (
               <>
-                <h1 className="page-title">{T('hero_title_line1')} <em>{T('hero_title_italic')}</em>,<br/>{T('hero_title_line2')}</h1>
+                <h1 className="page-title">{T('hero_title_line1')} <em>{T('hero_title_italic')}</em></h1>
 
                 <TiltSpotlightCard
                   style={{background: 'linear-gradient(135deg, rgba(124,92,252,0.15), rgba(139,92,246,0.08))', marginTop: 24, borderRadius: 16, border: '1px solid rgba(139,92,246,0.2)'}}
@@ -618,10 +618,21 @@ export default function App() {
                   <div className="hero-card" style={{background:'transparent',border:'none',margin:0}}>
                     <div style={{position:'relative',zIndex:1}}>
                       <div className="hero-card-badge">{Ico.sparkles} {T('hero_badge')}</div>
-                    <h2 className="hero-card-title">{T('hero_subtitle')} <em>{T('hero_subtitle_italic')}</em> {T('hero_subtitle_end')}</h2>
+                    <h2 className="hero-card-title">{T('hero_subtitle')} <em style={{color:'var(--color-gold,#d4af37)'}}>{T('hero_subtitle_italic')}</em></h2>
                     <p className="hero-card-desc">{T('hero_desc')}</p>
                     <div className="hero-card-actions">
-                      <button className="hero-btn hero-btn-primary" onClick={() => { playLecture(lecturesData[0], lecturesData) }}>▶ {T('btn_continue')}</button>
+                      <button className="hero-btn hero-btn-primary" onClick={() => {
+                        const recent = getRecentProgress(1)
+                        if (recent.length > 0) {
+                          const lecture = lecturesData.find(l => l.id === recent[0].lectureId)
+                          if (lecture) {
+                            playLecture(lecture)
+                            setTimeout(() => { if (audioRef.current) audioRef.current.currentTime = recent[0].currentTime }, 200)
+                          }
+                        } else if (lecturesData.length > 0) {
+                          playLecture(lecturesData[0], lecturesData)
+                        }
+                      }}>▶ {T('btn_continue')}</button>
                       <button className="hero-btn hero-btn-secondary" onClick={() => goto('search')}>🔎 {T('btn_catalog')}</button>
                       <button className="hero-btn hero-btn-secondary" onClick={() => setWaveSettingsOpen(true)}>⚙ {T('btn_configure')}</button>
                     </div>
@@ -724,23 +735,15 @@ export default function App() {
                   <button className="hero-btn hero-btn-secondary" onClick={() => goto('scholarsData')}>Показать все</button>
                 </div>
                 <div className="scholarsData-scroll-home">
-                  {scholarsData.slice(0, 8).map((s, i) => {
-                    const demoImages = [
-                      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
-                      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
-                      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=face',
-                      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&crop=face',
-                      'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=200&h=200&fit=crop&crop=face',
-                      'https://images.unsplash.com/photo-1463453091185-61582044d556?w=200&h=200&fit=crop&crop=face',
-                      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200&h=200&fit=crop&crop=face',
-                      'https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=200&h=200&fit=crop&crop=face',
-                    ]
+                  {scholarsData.slice(0, 8).map((s) => {
                     return (
                       <div key={s.id} className="scholar-card-home" onClick={() => { setselectedScholar(s); goto('scholar') }}>
                         <div className="scholar-avatar-home" style={{background: getSpeakerGradient(s.id)}}>
-                          <img src={demoImages[i] || demoImages[0]} alt={s.name} onError={(e) => { (e.target as HTMLImageElement).style.display='none' }} />
+                          {s.imageUrl ? (
+                            <img src={s.imageUrl} alt={s.name} onError={(e) => { (e.target as HTMLImageElement).style.display='none' }} />
+                          ) : null}
                           <div className="scholar-avatar-home-inner">
-                            {s.imageUrl ? <img src={s.imageUrl} alt={s.name} /> : <span className="scholar-initials-home">{getInitials(s.name)}</span>}
+                            <span className="scholar-initials-home">{getInitials(s.name)}</span>
                           </div>
                         </div>
                         <div className="scholar-name-home">{s.name.replace(/^Шейх\s+/, '')}</div>
@@ -1567,17 +1570,17 @@ export default function App() {
             <button className="np-top-btn" onClick={() => setNowPlaying(false)}>{Ico.chevDown}</button>
             <span className="np-top-title">{T('np_now')}</span>
             <div className="np-top-actions">
-              <button className={`np-top-action ${npView==='main'?'active':''}`} onClick={() => setNpView('main')} title="Обложка">{Ico.music}</button>
+              <button className="np-top-action" onClick={() => currentLecture && toggleLike(currentLecture.id)}
+                style={{color: currentLecture && liked.has(currentLecture.id) ? 'var(--accent)' : undefined}}>
+                {currentLecture && liked.has(currentLecture.id) ? Ico.heartFill : Ico.heart}
+              </button>
               <button className={`np-top-action ${queueOpen?'active':''}`} onClick={() => setQueueOpen(true)} title="Очередь">{Ico.list}</button>
-              <button className={`np-top-action ${npView==='lyrics'?'active':''}`} onClick={() => setNpView(npView==='lyrics'?'main':'lyrics')} title="Текст">{Ico.mic}</button>
-              <button className={`np-top-action ${npView==='eq'?'active':''}`} onClick={() => setNpView(npView==='eq'?'main':'eq')} title="Эквалайзер">{Ico.eq}</button>
-              <button className="np-top-action" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCtxMenu({x: Math.min(rect.left, window.innerWidth - 240), y: rect.bottom + 8}) }} title="Ещё">{Ico.dots}</button>
             </div>
           </div>
 
           {npView === 'main' && (
             <>
-              <div className="np-art">
+              <div className={`np-art ${isPlaying ? 'spinning' : ''}`}>
                 <div className="np-art-inner" style={{background:trackBg(currentLecture)}}>{currentLecture.icon}</div>
               </div>
               <div className="np-info">

@@ -520,8 +520,11 @@ ul,ol{list-style:none}
 .np-top-action.active{color:var(--accent)}
 
 /* Album art with spin */
-.np-art{position:relative;z-index:1;width:min(340px,65vw);aspect-ratio:1;border-radius:16px;overflow:hidden;box-shadow:0 16px 64px rgba(0,0,0,0.6);margin:20px 0 32px;transition:all .4s ease}
+.np-art{position:relative;z-index:1;width:min(340px,65vw);aspect-ratio:1;border-radius:50%;overflow:hidden;box-shadow:0 16px 64px rgba(0,0,0,0.6);margin:20px 0 32px;transition:all .4s ease}
 .np-art-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:100px}
+.np-art.spinning .np-art-inner{animation:spinCover 8s linear infinite}
+@keyframes spinCover{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.np-art.spinning .np-art-inner{animation:none}}
 .np-info{position:relative;z-index:1;text-align:center;margin-bottom:24px}
 .np-lecture-title{font-size:22px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:8px}
 .np-lecture-scholar{font-size:15px;color:var(--text3)}
