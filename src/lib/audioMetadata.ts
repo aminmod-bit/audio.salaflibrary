@@ -4,39 +4,41 @@ export interface AudioMetadata {
   duration: string
   fileType: string
   size: number
+  coverImage: string
 }
 
-export function readAudioMetadata(file: File): Promise<AudioMetadata> {
+export async function readAudioMetadata(file: File): Promise<AudioMetadata> {
+  const fileName = file.name.replace(/\.[^/.]+$/, '')
+  const fileExt = file.name.split('.').pop()?.toLowerCase() || ''
+
+  const cleanTitle = cleanFileName(fileName)
+  const lessonNumber = extractLessonNumber(fileName)
+
+  // Get duration from audio element
+  const duration = await getDuration(file)
+
+  return {
+    title: cleanTitle,
+    duration,
+    lessonNumber,
+    fileType: fileExt,
+    size: file.size,
+    coverImage: '',
+  }
+}
+
+function getDuration(file: File): Promise<string> {
   return new Promise((resolve) => {
-    const fileName = file.name.replace(/\.[^/.]+$/, '')
-    const fileExt = file.name.split('.').pop()?.toLowerCase() || ''
-
-    const cleanTitle = cleanFileName(fileName)
-    const lessonNumber = extractLessonNumber(fileName)
-
-    // Get duration from audio element
     const audio = new Audio()
     audio.src = URL.createObjectURL(file)
     audio.addEventListener('loadedmetadata', () => {
       const duration = formatDuration(audio.duration)
       URL.revokeObjectURL(audio.src)
-      resolve({
-        title: cleanTitle,
-        duration,
-        lessonNumber,
-        fileType: fileExt,
-        size: file.size,
-      })
+      resolve(duration)
     })
     audio.addEventListener('error', () => {
       URL.revokeObjectURL(audio.src)
-      resolve({
-        title: cleanTitle,
-        duration: '0:00',
-        lessonNumber,
-        fileType: fileExt,
-        size: file.size,
-      })
+      resolve('0:00')
     })
   })
 }
@@ -68,6 +70,7 @@ function extractLessonNumber(name: string): number {
 }
 
 function formatDuration(seconds: number): string {
+  if (!seconds || isNaN(seconds)) return '0:00'
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const s = Math.floor(seconds % 60)

@@ -12,6 +12,7 @@ export interface Lecture {
   title: string
   scholar: string
   scholarId?: string
+  bookId?: string
   duration: string
   icon: string
   categoryId: string
@@ -26,11 +27,8 @@ export interface Lecture {
   transcript?: string
   notes?: string
   summary?: string
-  relatedBookIds?: string[]
-  relatedArticleIds?: string[]
-  relatedAzkarIds?: string[]
-  relatedHadithIds?: string[]
-  salafLibraryUrl?: string
+  description?: string
+  audioUrl?: string
 }
 
 export interface Scholar {
@@ -44,6 +42,17 @@ export interface Scholar {
   tags: string[]
   sourceUrl: string
   imageCredit: string
+}
+
+export interface ScholarBook {
+  id: string
+  scholarId: string
+  title: string
+  titleAr: string
+  description: string
+  coverImage: string
+  color: string
+  order: number
 }
 
 export interface Series {
@@ -92,6 +101,10 @@ export function getSeries(): Series[] {
   return loadFromStorage<Series[]>('salaf-admin-series', defaultSeries)
 }
 
+export function getScholarBooks(): ScholarBook[] {
+  return loadFromStorage<ScholarBook[]>('salaf-admin-scholar-books', defaultScholarBooks)
+}
+
 export function saveLectures(lectures: Lecture[]): void {
   localStorage.setItem('salaf-admin-lectures', JSON.stringify(lectures))
   window.dispatchEvent(new Event('salaf-audio-data-updated'))
@@ -107,7 +120,14 @@ export function saveSeries(series: Series[]): void {
   window.dispatchEvent(new Event('salaf-audio-data-updated'))
 }
 
+export function saveScholarBooks(books: ScholarBook[]): void {
+  localStorage.setItem('salaf-admin-scholar-books', JSON.stringify(books))
+  window.dispatchEvent(new Event('salaf-audio-data-updated'))
+}
+
 const defaultScholars: Scholar[] = []
+
+const defaultScholarBooks: ScholarBook[] = []
 
 const defaultSeries: Series[] = []
 

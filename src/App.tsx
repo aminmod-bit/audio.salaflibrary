@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { categories, getLectures, getScholars } from './data'
+import { categories, getLectures, getScholars, getScholarBooks } from './data'
 import type { Lecture, Category, Scholar } from './data'
 import TiltSpotlightCard from './components/effects/TiltSpotlightCard'
 import CursorGlow from './components/effects/CursorGlow'
 import NatureBackground from './components/effects/NatureBackground'
 import { t, type Lang } from './i18n'
 import AdminPage from './pages/AdminPage'
-import { saveProgress, getRecentProgress, getAudioSpeed, setAudioSpeed, startSleepTimer, clearSleepTimer, getSleepTimerRemaining } from './lib/audioUtils'
+import { saveProgress, getRecentProgress, getAudioSpeed, setAudioSpeed } from './lib/audioUtils'
 import './App.css'
 
 /* ─── SVG Icons ─── */
@@ -81,7 +81,7 @@ function getSpeakerGradient(id: string): string {
   return gradients[id] || 'linear-gradient(135deg, #333, #555)'
 }
 
-type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'playlists' | 'rooms' | 'daily-playlist' | 'scholarsData' | 'scholar' | 'admin' | 'series-page' | 'listen-later'
+type Page = 'home' | 'search' | 'library' | 'library-scholar' | 'library-book' | 'category' | 'profile' | 'favorites' | 'playlists' | 'rooms' | 'daily-playlist' | 'scholarsData' | 'scholar' | 'admin' | 'series-page' | 'listen-later'
 
 const validPages: Page[] = ['home','search','library','favorites','playlists','admin','scholarsData','series-page','listen-later']
 
@@ -103,7 +103,6 @@ export default function App() {
   const [queue, setQueue] = useState<Lecture[]>([])
   const [nowPlaying, setNowPlaying] = useState(false)
   const [liked, setLiked] = useState<Set<string | number>>(new Set())
-  const [libTab, setLibTab] = useState<'playlists'|'albums'|'artists'|'downloaded'>('playlists')
   const [npView, setNpView] = useState<'main'|'lyrics'|'eq'>('main')
   const [ctxMenu, setCtxMenu] = useState<{x:number;y:number}|null>(null)
   const [eqPreset, setEqPreset] = useState('Без обработки')
@@ -122,12 +121,12 @@ export default function App() {
   const [scholarsData, setScholarsData] = useState<Scholar[]>(getScholars())
   const [lecturesData, setLecturesData] = useState<Lecture[]>(getLectures())
   const [selectedScholar, setselectedScholar] = useState<Scholar | null>(null)
+  const [selectedBook, setSelectedBook] = useState<any>(null)
+  const [scholarBooksData, setScholarBooksData] = useState<any[]>([])
   const [scholarSearch, setScholarSearch] = useState('')
   const [scholarRoleFilter, setScholarRoleFilter] = useState<string>('all')
   const [playbackSpeed, setPlaybackSpeed] = useState(getAudioSpeed())
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
-  const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(null)
-  const [sleepTimerRemaining, setSleepTimerRemaining] = useState(0)
   const [selectedSeries] = useState<any>(null)
   const [bookmarks, setBookmarks] = useState<any[]>(() => {
     try { return JSON.parse(localStorage.getItem('salaf-audio-bookmarks') || '[]') } catch { return [] }
@@ -144,7 +143,6 @@ export default function App() {
   const [abPointA, setAbPointA] = useState<number | null>(null)
   const [abPointB, setAbPointB] = useState<number | null>(null)
   const [abEnabled, setAbEnabled] = useState(false)
-  const [abError, setAbError] = useState('')
   const abPointARef = useRef<number | null>(null)
   const abPointBRef = useRef<number | null>(null)
   const abEnabledRef = useRef(false)
@@ -168,9 +166,15 @@ export default function App() {
     const handleUpdate = () => {
       setScholarsData(getScholars())
       setLecturesData(getLectures())
+      setScholarBooksData(getScholarBooks())
     }
     window.addEventListener('salaf-audio-data-updated', handleUpdate)
     return () => window.removeEventListener('salaf-audio-data-updated', handleUpdate)
+  }, [])
+
+  // Load scholar books on mount
+  useEffect(() => {
+    setScholarBooksData(getScholarBooks())
   }, [])
 
   /* Theme & Language */
@@ -196,23 +200,6 @@ export default function App() {
     }
     setAudioSpeed(playbackSpeed)
   }, [playbackSpeed])
-
-  // Sleep timer countdown
-  useEffect(() => {
-    if (sleepTimerMinutes === null) return
-    const interval = setInterval(() => {
-      const remaining = getSleepTimerRemaining()
-      setSleepTimerRemaining(remaining)
-      if (remaining <= 0) {
-        setSleepTimerMinutes(null)
-        if (audioRef.current) {
-          audioRef.current.pause()
-          setIsPlaying(false)
-        }
-      }
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [sleepTimerMinutes])
 
   const trackBg = (t: Lecture) => categories.find(c => c.id === t.categoryId)?.gradient || 'linear-gradient(135deg,#333,#555)'
 
@@ -311,7 +298,7 @@ export default function App() {
       abPointBRef.current = null
       abEnabledRef.current = false
     }
-    setAbError('')
+    
   }
 
   const setPointA = () => {
@@ -319,9 +306,8 @@ export default function App() {
     const time = audioRef.current.currentTime
     setAbPointA(time)
     abPointARef.current = time
-    setAbError('')
+    
     if (abPointB !== null && time >= abPointB) {
-      setAbError('Точка A должна быть раньше B')
       setAbEnabled(false)
       abEnabledRef.current = false
     } else if (abPointB !== null) {
@@ -334,14 +320,13 @@ export default function App() {
     if (!audioRef.current) return
     const time = audioRef.current.currentTime
     if (abPointA !== null && time <= abPointA) {
-      setAbError('Точка B должна быть позже A')
       setAbEnabled(false)
       abEnabledRef.current = false
       return
     }
     setAbPointB(time)
     abPointBRef.current = time
-    setAbError('')
+    
     if (abPointA !== null) {
       setAbEnabled(true)
       abEnabledRef.current = true
@@ -355,7 +340,7 @@ export default function App() {
     abPointARef.current = null
     abPointBRef.current = null
     abEnabledRef.current = false
-    setAbError('')
+    
     if (currentLecture) {
       try {
         const data = JSON.parse(localStorage.getItem('salaf-audio-ab-repeat') || '{}')
@@ -480,7 +465,6 @@ export default function App() {
   }, [isPlaying, currentLecture])
 
   const [dragging, setDragging] = useState<'progress' | 'volume' | null>(null)
-  const [shuffled, setShuffled] = useState(false)
   const [repeated, setRepeated] = useState(false)
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -617,8 +601,7 @@ export default function App() {
                 >
                   <div className="hero-card" style={{background:'transparent',border:'none',margin:0}}>
                     <div style={{position:'relative',zIndex:1}}>
-                      <div className="hero-card-badge">{Ico.sparkles} {T('hero_badge')}</div>
-                    <h2 className="hero-card-title">{T('hero_subtitle')} <em style={{color:'var(--color-gold,#d4af37)'}}>{T('hero_subtitle_italic')}</em></h2>
+                      <h2 className="hero-card-title">{T('hero_subtitle')} <em style={{color:'var(--color-gold,#d4af37)'}}>{T('hero_subtitle_italic')}</em></h2>
                     <p className="hero-card-desc">{T('hero_desc')}</p>
                     <div className="hero-card-actions">
                       <button className="hero-btn hero-btn-primary" onClick={() => {
@@ -633,23 +616,34 @@ export default function App() {
                           playLecture(lecturesData[0], lecturesData)
                         }
                       }}>▶ {T('btn_continue')}</button>
-                      <button className="hero-btn hero-btn-secondary" onClick={() => goto('search')}>🔎 {T('btn_catalog')}</button>
-                      <button className="hero-btn hero-btn-secondary" onClick={() => setWaveSettingsOpen(true)}>⚙ {T('btn_configure')}</button>
                     </div>
-                    <div className="hero-lecturesData">
-                      {lecturesData.slice(0, 6).map(t => (
-                        <div key={t.id} className={`hero-lecture ${currentLecture?.id===t.id?'playing':''}`} onClick={() => playLecture(t)}>
-                          <div className="hero-lecture-icon" style={{background: trackBg(t)}}>{t.icon}</div>
-                          <div>
-                            <div className="hero-lecture-title">{t.title}</div>
-                            <div className="hero-lecture-scholar">{t.scholar}</div>
+                    {/* Lecture cards grid */}
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginTop:20}}>
+                      {lecturesData.slice(0, 3).map(t => (
+                        <div key={t.id} onClick={() => playLecture(t)}
+                          style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,overflow:'hidden',cursor:'pointer',transition:'all .2s'}}
+                          onMouseEnter={e => (e.currentTarget.style.borderColor='rgba(255,255,255,0.15)')}
+                          onMouseLeave={e => (e.currentTarget.style.borderColor='rgba(255,255,255,0.08)')}>
+                          <div style={{height:80,background:trackBg(t),display:'flex',alignItems:'center',justifyContent:'center',fontSize:28}}>
+                            {t.coverImage ? <img src={t.coverImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} /> : t.icon}
                           </div>
-                          <div className="hero-lecture-play">{Ico.play}</div>
+                          <div style={{padding:'8px 10px'}}>
+                            <div style={{fontSize:12,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title}</div>
+                            <div style={{fontSize:10,color:'var(--text3)',marginTop:2}}>{t.scholar || 'Лектор'}</div>
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div className="hero-card-art"><div className="hero-card-art-inner" style={{background:'linear-gradient(135deg,var(--accent),#7b2cbf)'}}>🕌</div></div>
+                  <div className="hero-card-art">
+                    <div className="hero-card-art-inner" style={{background: lecturesData[0] ? trackBg(lecturesData[0]) : 'linear-gradient(135deg,var(--accent),#7b2cbf)',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                      {lecturesData[0]?.coverImage ? (
+                        <img src={lecturesData[0].coverImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                      ) : (
+                        <span style={{fontSize:64}}>{lecturesData[0]?.icon || '📚'}</span>
+                      )}
+                    </div>
+                  </div>
                   </div>
                 </TiltSpotlightCard>
 
@@ -685,21 +679,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-
-                {/* AI Banner */}
-                <TiltSpotlightCard maxTilt={6} glowColor="rgba(139,92,246,0.2)" style={{borderRadius:14,marginBottom:40}}>
-                  <div className="ai-banner glow-card" style={{margin:0,border:'none'}} onClick={() => goto('playlists')}>
-                    <div className="ai-banner-icon">{Ico.sparkles}</div>
-                    <div>
-                      <div className="ai-banner-label">Подборка</div>
-                      <div className="ai-banner-title">Подборки по темам</div>
-                      <div className="ai-banner-desc">Выбирай уроки по акыде, таухиду, фикху, хадисам и другим полезным направлениям.</div>
-                    </div>
-                    <div className="ai-banner-right">
-                      <span className="ai-banner-link">Попробовать {Ico.chevRight}</span>
-                    </div>
-                  </div>
-                </TiltSpotlightCard>
 
                 {/* Playlists Section - YouTube style like Photo 4 */}
                 <div className="section-header" style={{marginTop:48,justifyContent:'space-between'}}>
@@ -911,69 +890,141 @@ export default function App() {
             {/* ═══ LIBRARY ═══ */}
             {page === 'library' && (
               <>
-                <div style={{display:'flex',alignItems:'flex-end',marginBottom:24}}>
-                  <div style={{flex:1}}>
-                    <div className="page-eyebrow">{T('library_collection')}</div>
-                    <h1 className="page-title">{T('library_title')}</h1>
+                <h1 className="page-title" style={{marginBottom:24}}>Библиотека</h1>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:16}}>
+                  {scholarsData.map(s => {
+                    const bookCount = scholarBooksData.filter(b => b.scholarId === s.id).length
+                    const lectureCount = lecturesData.filter(l => l.scholarId === s.id).length
+                    return (
+                      <div key={s.id} onClick={() => { setselectedScholar(s); goto('library-scholar') }}
+                        style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:14,overflow:'hidden',cursor:'pointer',transition:'all .2s'}}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor='var(--border2)')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor='var(--border)')}>
+                        <div style={{height:120,background:getSpeakerGradient(s.id),display:'flex',alignItems:'center',justifyContent:'center'}}>
+                          {s.imageUrl ? (
+                            <img src={s.imageUrl} alt={s.name} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                          ) : (
+                            <span style={{fontSize:36,fontWeight:700,color:'#fff'}}>{getInitials(s.name)}</span>
+                          )}
+                        </div>
+                        <div style={{padding:12}}>
+                          <div style={{fontSize:14,fontWeight:600,marginBottom:2}}>{s.name}</div>
+                          <div style={{fontSize:11,color:'var(--text3)'}}>{s.role}</div>
+                          <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>{bookCount} книг · {lectureCount} уроков</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {scholarsData.length === 0 && (
+                    <div className="lib-empty" style={{gridColumn:'1/-1'}}>
+                      <div className="lib-empty-icon">📚</div>
+                      <div className="lib-empty-title">Добавьте учёных в админке</div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* ═══ LIBRARY SCHOLAR ═══ */}
+            {page === 'library-scholar' && selectedScholar && (
+              <>
+                <button className="back-btn" onClick={() => goto('library')}>{Ico.back} Назад к библиотеке</button>
+                <div style={{display:'flex',gap:24,alignItems:'flex-start',marginBottom:32}}>
+                  <div style={{width:120,height:120,borderRadius:'50%',background:getSpeakerGradient(selectedScholar.id),display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}>
+                    {selectedScholar.imageUrl ? (
+                      <img src={selectedScholar.imageUrl} alt={selectedScholar.name} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                    ) : (
+                      <span style={{fontSize:36,fontWeight:700,color:'#fff'}}>{getInitials(selectedScholar.name)}</span>
+                    )}
+                  </div>
+                  <div>
+                    <div className="page-eyebrow">{selectedScholar.role}</div>
+                    <h1 className="page-title" style={{marginBottom:4}}>{selectedScholar.name}</h1>
+                    {selectedScholar.nameAr && <div style={{fontSize:16,color:'var(--text3)',direction:'rtl',marginBottom:8}}>{selectedScholar.nameAr}</div>}
+                    <p className="page-subtitle">{selectedScholar.description}</p>
                   </div>
                 </div>
-                <div className="lib-tabs">
-                  {(['playlists','albums','artists','downloaded'] as const).map(t => (
-                    <button key={t} className={`lib-tab ${libTab===t?'active':''}`} onClick={() => setLibTab(t)}>
-                      {{playlists:T('lib_tab_lectures'),albums:T('lib_tab_fav'),artists:T('lib_tab_lectors'),downloaded:T('lib_tab_downloaded')}[t]}
-                    </button>
-                  ))}
+                <h3 className="section-title" style={{margin:'0 0 16px'}}>Книги и темы</h3>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12}}>
+                  {scholarBooksData.filter(b => b.scholarId === selectedScholar.id).sort((a,b) => a.order - b.order).map(book => {
+                    const bookLectures = lecturesData.filter(l => l.bookId === book.id)
+                    return (
+                      <div key={book.id} onClick={() => { setSelectedBook(book); goto('library-book') }}
+                        style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:12,overflow:'hidden',cursor:'pointer',transition:'all .2s'}}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor='var(--border2)')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor='var(--border)')}>
+                        <div style={{height:100,background:book.color || 'linear-gradient(135deg,#1b4332,#2d6a4f)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                          {book.coverImage ? (
+                            <img src={book.coverImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                          ) : (
+                            <span style={{fontSize:32}}>📖</span>
+                          )}
+                        </div>
+                        <div style={{padding:12}}>
+                          <div style={{fontSize:14,fontWeight:600,marginBottom:2}}>{book.title}</div>
+                          {book.titleAr && <div style={{fontSize:11,color:'var(--text3)',direction:'rtl'}}>{book.titleAr}</div>}
+                          <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>{bookLectures.length} уроков</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {scholarBooksData.filter(b => b.scholarId === selectedScholar.id).length === 0 && (
+                    <div className="lib-empty" style={{gridColumn:'1/-1'}}>
+                      <div className="lib-empty-icon">📖</div>
+                      <div className="lib-empty-title">Добавьте книги в админке</div>
+                    </div>
+                  )}
                 </div>
-                {libTab === 'playlists' && (
-                  <>
-                    <div className="lib-item">
-                      <div className="lib-item-icon">{Ico.upload}</div>
-                      <div className="lib-item-info">
-                        <div className="lib-item-title">{T('lib_downloaded')}</div>
-                        <div className="lib-item-desc">{T('lib_downloaded_desc')}</div>
-                      </div>
+              </>
+            )}
+
+            {/* ═══ LIBRARY BOOK ═══ */}
+            {page === 'library-book' && selectedBook && (
+              <>
+                <button className="back-btn" onClick={() => goto('library-scholar')}>{Ico.back} Назад к {selectedScholar?.name}</button>
+                <div style={{display:'flex',gap:20,alignItems:'flex-start',marginBottom:24}}>
+                  <div style={{width:100,height:100,borderRadius:12,background:selectedBook.color || 'linear-gradient(135deg,#1b4332,#2d6a4f)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    {selectedBook.coverImage ? (
+                      <img src={selectedBook.coverImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:12}} />
+                    ) : (
+                      <span style={{fontSize:36}}>📖</span>
+                    )}
+                  </div>
+                  <div>
+                    <h1 className="page-title" style={{marginBottom:4}}>{selectedBook.title}</h1>
+                    {selectedBook.titleAr && <div style={{fontSize:14,color:'var(--text3)',direction:'rtl',marginBottom:4}}>{selectedBook.titleAr}</div>}
+                    <p className="page-subtitle">{selectedBook.description}</p>
+                    <div style={{fontSize:12,color:'var(--text3)'}}>
+                      {lecturesData.filter(l => l.bookId === selectedBook.id).length} уроков
                     </div>
-                    <div className="lib-item">
-                      <div className="lib-item-icon">{Ico.link}</div>
-                      <div className="lib-item-info">
-                        <div className="lib-item-title">{T('lib_import')}</div>
-                        <div className="lib-item-desc">{T('lib_import_desc')}</div>
+                  </div>
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  {lecturesData
+                    .filter(l => l.bookId === selectedBook.id)
+                    .sort((a, b) => (a.lessonNumber || 0) - (b.lessonNumber || 0))
+                    .map(l => (
+                      <div key={l.id} style={{display:'flex',alignItems:'center',gap:12,padding:12,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,cursor:'pointer',transition:'all .15s'}}
+                        onClick={() => playLecture(l, lecturesData.filter(lec => lec.bookId === selectedBook.id).sort((a, b) => (a.lessonNumber || 0) - (b.lessonNumber || 0)))}>
+                        <div style={{width:32,height:32,borderRadius:8,background:currentLecture?.id===l.id?'var(--accent)':'var(--bg5)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:600,color:currentLecture?.id===l.id?'#fff':'var(--text3)',flexShrink:0}}>
+                          {l.lessonNumber || '—'}
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:14,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.title}</div>
+                          <div style={{fontSize:12,color:'var(--text3)'}}>{l.duration}</div>
+                        </div>
+                        {currentLecture?.id===l.id && isPlaying && (
+                          <div style={{color:'var(--accent)'}}>{Ico.pause}</div>
+                        )}
                       </div>
-                    </div>
-                    <div className="lib-item">
-                      <div className="lib-item-icon">{Ico.heart}</div>
-                      <div className="lib-item-info">
-                        <div className="lib-item-title">{T('lib_favorites')}</div>
-                        <div className="lib-item-desc">{liked.size} {T('lib_favorites_desc')}</div>
-                      </div>
-                    </div>
-                  </>
-                )}
-                {libTab === 'albums' && (
-                  liked.size > 0 ? (
-                    <LectureList tracks={lecturesData.filter(t => liked.has(t.id))} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
-                  ) : (
+                    ))}
+                  {lecturesData.filter(l => l.bookId === selectedBook.id).length === 0 && (
                     <div className="lib-empty">
-                      <div className="lib-empty-icon">❤️</div>
-                      <div className="lib-empty-title">Нет сохранённых</div>
-                      <div className="lib-empty-desc">Нажмите сердечко на странице трека</div>
+                      <div className="lib-empty-icon">📚</div>
+                      <div className="lib-empty-title">Уроки будут добавлены</div>
                     </div>
-                  )
-                )}
-                {libTab === 'artists' && (
-                  <div className="lib-empty">
-                    <div className="lib-empty-icon">👤</div>
-                    <div className="lib-empty-title">Артисты</div>
-                    <div className="lib-empty-desc">Все артисты представлены в разделах</div>
-                  </div>
-                )}
-                {libTab === 'downloaded' && (
-                  <div className="lib-empty">
-                    <div className="lib-empty-icon">⬇️</div>
-                    <div className="lib-empty-title">Пока ничего не сохранено оффлайн</div>
-                    <div className="lib-empty-desc">Откройте трек и нажмите «Слушать оффлайн»</div>
-                  </div>
-                )}
+                  )}
+                </div>
               </>
             )}
 
@@ -1318,8 +1369,9 @@ export default function App() {
 
         {/* ─── Bottom Player ─── */}
         <div className={`player ${isPlaying?'playing':''}`}>
+          {/* Left: thumb + info */}
           <div className="player-left">
-            <div className="player-thumb" style={currentLecture ? {background:trackBg(currentLecture)} : {}} onClick={() => currentLecture && setNowPlaying(true)}>
+            <div className={`player-thumb ${isPlaying ? 'spinning' : ''}`} style={currentLecture ? {background:trackBg(currentLecture)} : {}} onClick={() => currentLecture && setNowPlaying(true)}>
               {currentLecture ? currentLecture.icon : '🎵'}
             </div>
             <div className="player-lecture-info">
@@ -1327,9 +1379,10 @@ export default function App() {
               <div className="player-lecture-scholar" onClick={() => currentLecture && setNowPlaying(true)}>{currentLecture?.scholar || T('player_for')}</div>
             </div>
           </div>
+
+          {/* Center: controls + progress */}
           <div className="player-center">
             <div className="player-btns">
-              <button className={`player-btn ${shuffled?'active':''}`} onClick={() => setShuffled(s => !s)}>{Ico.shuffle}</button>
               <button className="player-btn" onClick={() => { if (audioRef.current) audioRef.current.currentTime -= 10 }} style={{fontSize:11,fontWeight:700}}>-10</button>
               <button className="player-btn" onClick={playPrev}>{Ico.prev}</button>
               <button className="player-btn player-btn-play" onClick={() => currentLecture && setIsPlaying(p => !p)}>
@@ -1339,28 +1392,6 @@ export default function App() {
               <button className="player-btn" onClick={() => { if (audioRef.current) audioRef.current.currentTime += 10 }} style={{fontSize:11,fontWeight:700}}>+10</button>
               <button className={`player-btn ${repeated?'active':''}`} onClick={() => setRepeated(r => !r)}>{Ico.repeat}</button>
             </div>
-            {/* A-B Repeat controls */}
-            <div style={{display:'flex',alignItems:'center',gap:6,marginTop:8,justifyContent:'center'}}>
-              <button onClick={setPointA} style={{padding:'3px 8px',borderRadius:4,fontSize:11,fontWeight:600,border:'1px solid',cursor:'pointer',
-                background: abPointA !== null ? '#7c5cfc' : 'transparent',
-                color: abPointA !== null ? '#fff' : 'var(--text3)',
-                borderColor: abPointA !== null ? '#7c5cfc' : 'var(--border)'}}>
-                A:{fmtAbTime(abPointA)}
-              </button>
-              <button onClick={setPointB} style={{padding:'3px 8px',borderRadius:4,fontSize:11,fontWeight:600,border:'1px solid',cursor:'pointer',
-                background: abPointB !== null ? '#7c5cfc' : 'transparent',
-                color: abPointB !== null ? '#fff' : 'var(--text3)',
-                borderColor: abPointB !== null ? '#7c5cfc' : 'var(--border)'}}>
-                B:{fmtAbTime(abPointB)}
-              </button>
-              {abEnabled && (
-                <span style={{fontSize:10,color:'#22c55e',fontWeight:600}}>AB ✓</span>
-              )}
-              {(abPointA !== null || abPointB !== null) && (
-                <button onClick={resetAbRepeat} style={{padding:'3px 6px',borderRadius:4,fontSize:11,border:'1px solid var(--border)',cursor:'pointer',background:'transparent',color:'var(--text3)'}}>✕</button>
-              )}
-            </div>
-            {abError && <div style={{fontSize:10,color:'#ef4444',textAlign:'center',marginTop:4}}>{abError}</div>}
             <div className="player-progress">
               <span className="player-time">{fmtTime(currentTime)}</span>
               <div className="player-progress-bar" onClick={handleProgressClick} onMouseDown={handleDragStart('progress')}>
@@ -1369,25 +1400,41 @@ export default function App() {
               <span className="player-time">{currentLecture ? (audioRef.current?.duration ? fmtTime(audioRef.current.duration) : currentLecture.duration) : '0:00'}</span>
             </div>
           </div>
+
+          {/* Right: A-B, speed, volume */}
           <div className="player-right">
-            <div className="player-extra-btns">
-              <button className="player-extra-btn" onClick={() => currentLecture && setNowPlaying(true)}>{Ico.heart}</button>
-              <button className="player-extra-btn" onClick={() => setQueueOpen(true)}>{Ico.list}</button>
-              <button className="player-extra-btn" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCtxMenu({x: Math.min(rect.left, window.innerWidth - 240), y: Math.max(8, rect.top - 320)}) }}>{Ico.dots}</button>
+            {/* A-B Repeat */}
+            <div style={{display:'flex',alignItems:'center',gap:3}}>
+              <button onClick={setPointA} style={{padding:'2px 6px',borderRadius:4,fontSize:10,fontWeight:600,border:'1px solid',cursor:'pointer',
+                background: abPointA !== null ? '#7c5cfc' : 'transparent',
+                color: abPointA !== null ? '#fff' : 'var(--text3)',
+                borderColor: abPointA !== null ? '#7c5cfc' : 'var(--border)'}}>
+                A
+              </button>
+              <button onClick={setPointB} style={{padding:'2px 6px',borderRadius:4,fontSize:10,fontWeight:600,border:'1px solid',cursor:'pointer',
+                background: abPointB !== null ? '#7c5cfc' : 'transparent',
+                color: abPointB !== null ? '#fff' : 'var(--text3)',
+                borderColor: abPointB !== null ? '#7c5cfc' : 'var(--border)'}}>
+                B
+              </button>
+              {abEnabled && <span style={{fontSize:9,color:'#22c55e',fontWeight:600}}>AB</span>}
+              {(abPointA !== null || abPointB !== null) && (
+                <button onClick={(e) => { e.stopPropagation(); resetAbRepeat() }} style={{padding:'2px 4px',borderRadius:4,fontSize:10,border:'1px solid var(--border)',cursor:'pointer',background:'transparent',color:'var(--text3)'}}>✕</button>
+              )}
             </div>
-            {/* Speed control */}
+            {/* Speed */}
             <div style={{position:'relative'}}>
               <button className="player-extra-btn" onClick={() => setSpeedMenuOpen(!speedMenuOpen)}
-                style={{fontSize:11,fontWeight:700,minWidth:36}}>
+                style={{fontSize:11,fontWeight:700,minWidth:32,padding:'4px 6px'}}>
                 {playbackSpeed}x
               </button>
               {speedMenuOpen && (
                 <>
                   <div style={{position:'fixed',inset:0,zIndex:299}} onClick={() => setSpeedMenuOpen(false)} />
-                  <div style={{position:'absolute',bottom:'100%',right:0,marginBottom:8,background:'#18181c',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:6,zIndex:300, minWidth:80}}>
+                  <div style={{position:'absolute',bottom:'100%',right:0,marginBottom:8,background:'#18181c',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:6,zIndex:300,minWidth:80}}>
                     {[0.75, 1, 1.25, 1.5, 2].map(s => (
                       <button key={s} onClick={() => { setPlaybackSpeed(s); setSpeedMenuOpen(false) }}
-                        style={{display:'block',width:'100%',padding:'8px 12px',borderRadius:6,fontSize:13,fontWeight:500,textAlign:'left',cursor:'pointer',border:'none',
+                        style={{display:'block',width:'100%',padding:'6px 10px',borderRadius:6,fontSize:12,fontWeight:500,textAlign:'left',cursor:'pointer',border:'none',
                           background: playbackSpeed === s ? '#7c5cfc' : 'transparent',
                           color: playbackSpeed === s ? '#fff' : '#a0a0a8'}}>
                         {s}x
@@ -1397,38 +1444,13 @@ export default function App() {
                 </>
               )}
             </div>
-            {/* Sleep timer */}
-            <div style={{position:'relative'}}>
-              <button className="player-extra-btn" onClick={() => {
-                if (sleepTimerMinutes !== null) {
-                  clearSleepTimer()
-                  setSleepTimerMinutes(null)
-                  setSleepTimerRemaining(0)
-                } else {
-                  const mins = 30
-                  startSleepTimer(mins, () => {
-                    setSleepTimerMinutes(null)
-                    setSleepTimerRemaining(0)
-                  })
-                  setSleepTimerMinutes(mins)
-                }
-              }}
-                style={{color: sleepTimerMinutes ? 'var(--accent)' : undefined, position:'relative'}}>
-                {Ico.clock}
-                {sleepTimerMinutes && (
-                  <span style={{position:'absolute',top:-4,right:-4,background:'var(--accent)',color:'#fff',fontSize:8,padding:'1px 3px',borderRadius:4}}>
-                    {Math.ceil(sleepTimerRemaining / 60000)}
-                  </span>
-                )}
-              </button>
-            </div>
+            {/* Volume */}
             <div className="player-vol">
               <div onClick={() => setMuted(m => !m)}>{muted ? Ico.volMute : Ico.vol}</div>
               <div className="player-vol-bar" onClick={handleVolClick} onMouseDown={handleDragStart('volume')}>
                 <div className="player-vol-fill" style={{width:`${(muted?0:volume)*100}%`}} />
               </div>
             </div>
-            <div className="player-expand" onClick={() => currentLecture && setNowPlaying(true)}>{Ico.expand}</div>
           </div>
         </div>
       </div>
@@ -1569,13 +1591,7 @@ export default function App() {
           <div className="np-top">
             <button className="np-top-btn" onClick={() => setNowPlaying(false)}>{Ico.chevDown}</button>
             <span className="np-top-title">{T('np_now')}</span>
-            <div className="np-top-actions">
-              <button className="np-top-action" onClick={() => currentLecture && toggleLike(currentLecture.id)}
-                style={{color: currentLecture && liked.has(currentLecture.id) ? 'var(--accent)' : undefined}}>
-                {currentLecture && liked.has(currentLecture.id) ? Ico.heartFill : Ico.heart}
-              </button>
-              <button className={`np-top-action ${npView==='lyrics'?'active':''}`} onClick={() => setNpView(npView==='lyrics'?'main':'lyrics')} title="Текст/Транскрипт">{Ico.mic}</button>
-            </div>
+            <div className="np-top-actions" />
           </div>
 
           {npView === 'main' && (
@@ -1587,25 +1603,25 @@ export default function App() {
                 <div className="np-lecture-title">{currentLecture.title}</div>
                 <div className="np-lecture-scholar">{currentLecture.scholar}</div>
               </div>
-              <div className="np-actions-row">
-                <button className={`np-action-btn ${liked.has(currentLecture.id)?'liked':''}`} onClick={() => toggleLike(currentLecture.id)}>
-                  {liked.has(currentLecture.id) ? Ico.heartFill : Ico.heart}
-                </button>
-              </div>
             </>
           )}
 
           {npView === 'lyrics' && (
             <div className="np-lyrics">
-              <div className="np-lyrics-line past">Сура Аль-Фатиха</div>
-              <div className="np-lyrics-line past">Во имя Аллаха, Милостивого, Милосердного</div>
-              <div className="np-lyrics-line active">Хвала Аллаху, Господу миров</div>
-              <div className="np-lyrics-line">Милостивому, Милосердному</div>
-              <div className="np-lyrics-line">Владыке Дня воздаяния</div>
-              <div className="np-lyrics-line">Тебе поклоняемся и Тебе просим помощи</div>
-              <div className="np-lyrics-line">Веди нас прямым путём</div>
-              <div className="np-lyrics-line">Путём тех, whom Ты облагодетельствовал</div>
-              <div className="np-lyrics-line">Не тех, на кого гнев Твой, и не заблудших</div>
+              {currentLecture.transcript ? (
+                currentLecture.transcript.split('\n').map((line, i) => (
+                  <div key={i} className="np-lyrics-line">{line}</div>
+                ))
+              ) : currentLecture.notes ? (
+                currentLecture.notes.split('\n').map((line, i) => (
+                  <div key={i} className="np-lyrics-line">{line}</div>
+                ))
+              ) : (
+                <>
+                  <div className="np-lyrics-line" style={{color:'var(--text3)',fontSize:16}}>Транскрипт будет добавлен</div>
+                  <div className="np-lyrics-line" style={{color:'var(--text3)',fontSize:14,marginTop:8}}>Пока что вы можете слушать урок</div>
+                </>
+              )}
             </div>
           )}
 
@@ -1619,14 +1635,24 @@ export default function App() {
             </div>
           </div>
           <div className="np-controls">
-            <button className="np-ctrl" onClick={playPrev}>{Ico.shuffle}</button>
+            <button className="np-ctrl" onClick={setPointA} style={{fontSize:11,fontWeight:600,color:abPointA!==null?'var(--accent)':'var(--text2)'}}>A</button>
             <button className="np-ctrl" onClick={playPrev}>{Ico.prev}</button>
             <button className="np-ctrl np-ctrl-main" onClick={() => setIsPlaying(p => !p)}>
               {isPlaying ? Ico.pause : Ico.play}
             </button>
             <button className="np-ctrl" onClick={playNext}>{Ico.next}</button>
-            <button className="np-ctrl">{Ico.repeat}</button>
+            <button className="np-ctrl" onClick={setPointB} style={{fontSize:11,fontWeight:600,color:abPointB!==null?'var(--accent)':'var(--text2)'}}>B</button>
           </div>
+          {/* A-B status */}
+          {(abPointA !== null || abPointB !== null) && (
+            <div style={{display:'flex',alignItems:'center',gap:8,justifyContent:'center',marginBottom:16}}>
+              <span style={{fontSize:12,color:abEnabled?'#22c55e':'var(--text3)'}}>
+                A: {fmtAbTime(abPointA)} → B: {fmtAbTime(abPointB)}
+                {abEnabled && ' ✓'}
+              </span>
+              <button onClick={(e) => { e.stopPropagation(); resetAbRepeat() }} style={{padding:'4px 8px',borderRadius:6,fontSize:11,border:'1px solid var(--border)',cursor:'pointer',background:'transparent',color:'var(--text3)'}}>Сброс</button>
+            </div>
+          )}
           <div className="np-volume">
             <div onClick={() => setMuted(m => !m)}>{muted ? Ico.volMute : Ico.vol}</div>
             <div className="np-volume-bar" onClick={handleVolClick} onMouseDown={handleDragStart('volume')}>

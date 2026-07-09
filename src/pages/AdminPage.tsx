@@ -95,7 +95,7 @@ export default function AdminPage() {
         seriesId: batchSeriesId || '',
         categoryId: 'lectures',
         duration: metadata.duration,
-        coverImage: '',
+        coverImage: metadata.coverImage || '',
         fileType: metadata.fileType,
         size: metadata.size,
       })
