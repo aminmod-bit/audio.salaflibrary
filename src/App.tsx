@@ -89,7 +89,7 @@ function getSpeakerGradient(id: string): string {
   return gradients[id] || 'linear-gradient(135deg, #333, #555)'
 }
 
-type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'playlists' | 'rooms' | 'daily-playlist' | 'scholarsData' | 'scholar' | 'admin' | 'series-page'
+type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'playlists' | 'rooms' | 'daily-playlist' | 'scholarsData' | 'scholar' | 'admin' | 'series-page' | 'listen-later'
 
 /* ─── App ─── */
 export default function App() {
@@ -131,6 +131,18 @@ export default function App() {
   const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(null)
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState(0)
   const [selectedSeries] = useState<any>(null)
+  const [bookmarks, setBookmarks] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem('salaf-audio-bookmarks') || '[]') } catch { return [] }
+  })
+  const [listenLater, setListenLater] = useState<number[]>(() => {
+    try { return JSON.parse(localStorage.getItem('salaf-audio-listen-later') || '[]') } catch { return [] }
+  })
+  const [completedLectures, setCompletedLectures] = useState<Set<number>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('salaf-audio-completed') || '[]')) } catch { return new Set() }
+  })
+  const [autoplayNext, setAutoplayNext] = useState(() => localStorage.getItem('salaf-audio-autoplay') === 'true')
+  const [searchFilter, setSearchFilter] = useState<string>('all')
+  const [durationFilter, setDurationFilter] = useState<string>('all')
   const scrollRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -186,6 +198,63 @@ export default function App() {
   }, [sleepTimerMinutes])
 
   const trackBg = (t: Lecture) => categories.find(c => c.id === t.categoryId)?.gradient || 'linear-gradient(135deg,#333,#555)'
+
+  // Bookmarks helpers
+  const addBookmark = (lessonId: number, time: number, note: string = '') => {
+    const newBookmark = { id: Date.now(), lessonId, time, note, createdAt: Date.now() }
+    const updated = [...bookmarks, newBookmark]
+    setBookmarks(updated)
+    localStorage.setItem('salaf-audio-bookmarks', JSON.stringify(updated))
+  }
+  const removeBookmark = (id: number) => {
+    const updated = bookmarks.filter(b => b.id !== id)
+    setBookmarks(updated)
+    localStorage.setItem('salaf-audio-bookmarks', JSON.stringify(updated))
+  }
+  const getBookmarksForLecture = (lessonId: number) => bookmarks.filter(b => b.lessonId === lessonId)
+
+  // Listen later helpers
+  const toggleListenLater = (lessonId: number) => {
+    const updated = listenLater.includes(lessonId)
+      ? listenLater.filter(id => id !== lessonId)
+      : [...listenLater, lessonId]
+    setListenLater(updated)
+    localStorage.setItem('salaf-audio-listen-later', JSON.stringify(updated))
+  }
+
+  // Completed helpers
+  const toggleCompleted = (lessonId: number) => {
+    const updated = new Set(completedLectures)
+    if (updated.has(lessonId)) { updated.delete(lessonId) } else { updated.add(lessonId) }
+    setCompletedLectures(updated)
+    localStorage.setItem('salaf-audio-completed', JSON.stringify([...updated]))
+  }
+  const isCompleted = (lessonId: number) => completedLectures.has(lessonId)
+
+  // Autoplay next
+  const toggleAutoplay = () => {
+    const newVal = !autoplayNext
+    setAutoplayNext(newVal)
+    localStorage.setItem('salaf-audio-autoplay', String(newVal))
+  }
+
+  // Parse duration to minutes
+  const parseDurationToMinutes = (dur: string): number => {
+    const parts = dur.split(':').map(Number)
+    if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60
+    if (parts.length === 2) return parts[0] + parts[1] / 60
+    return 0
+  }
+
+  // Get series progress
+  const getSeriesProgress = (seriesId: string) => {
+    const seriesLectures = lecturesData.filter(l => l.seriesId === seriesId)
+    const completed = seriesLectures.filter(l => completedLectures.has(l.id))
+    return { total: seriesLectures.length, completed: completed.length, percent: seriesLectures.length > 0 ? Math.round((completed.length / seriesLectures.length) * 100) : 0 }
+  }
+
+  // Expose for debugging
+  void addBookmark; void removeBookmark; void getBookmarksForLecture; void toggleAutoplay; void getSeriesProgress
   const catBg = (c: Category) => c.gradient
 
   const dailyPlaylists = [
@@ -198,7 +267,16 @@ export default function App() {
   const T = (key: string) => t(lang as Lang, key)
 
   const filteredLectures = searchQuery.trim()
-    ? lecturesData.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.scholar.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? lecturesData.filter(l => {
+        const q = searchQuery.toLowerCase()
+        return l.title.toLowerCase().includes(q)
+          || l.scholar.toLowerCase().includes(q)
+          || (l.tags || []).some(t => t.toLowerCase().includes(q))
+          || (l.transcript || '').toLowerCase().includes(q)
+          || (l.notes || '').toLowerCase().includes(q)
+          || (l.summary || '').toLowerCase().includes(q)
+          || (l.seriesId || '').toLowerCase().includes(q)
+      })
     : lecturesData
 
   const toggleLike = (id: string | number) => setLiked(prev => { const n = new Set(prev); if (n.has(id)) { n.delete(id) } else { n.add(id) }; return n })
@@ -226,13 +304,23 @@ export default function App() {
   }, [currentLecture, filteredLectures])
 
   const playNext = useCallback(() => {
+    // Mark as completed if 90%+ listened
+    if (currentLecture && audioRef.current && audioRef.current.duration) {
+      const pct = audioRef.current.currentTime / audioRef.current.duration
+      if (pct >= 0.9 && !completedLectures.has(currentLecture.id)) {
+        toggleCompleted(currentLecture.id)
+      }
+    }
+
     if (!currentLecture || queue.length === 0) return
+    if (!autoplayNext) return
+
     const idx = queue.findIndex(t => t.id === currentLecture.id)
     if (idx < queue.length - 1) {
       const n = queue[idx+1]; setCurrentLecture(n); setIsPlaying(true); setProgress(0); setCurrentTime(0)
       if (audioRef.current) { audioRef.current.src = n.src; audioRef.current.load(); audioRef.current.play().catch(() => {}) }
     }
-  }, [currentLecture, queue])
+  }, [currentLecture, queue, autoplayNext, completedLectures])
 
   const playPrev = useCallback(() => {
     if (!currentLecture || queue.length === 0) return
@@ -395,13 +483,13 @@ export default function App() {
           <button className={`sidebar-nav-item ${page==='home'&&!activeCategory?'active':''}`} onClick={() => { setActiveCategory(null); goto('home') }}>{Ico.home} {T('nav_home')}</button>
           <button className={`sidebar-nav-item ${page==='search'?'active':''}`} onClick={() => goto('search')}>{Ico.search} {T('nav_search')}</button>
           <button className={`sidebar-nav-item ${page==='playlists'?'active':''}`} onClick={() => goto('playlists')}>{Ico.library} {T('nav_playlist')}</button>
-          <button className={`sidebar-nav-item ${page==='library'?'active':''}`} onClick={() => goto('library')}>{Ico.library} {T('nav_library')}</button>
+          <button className={`sidebar-nav-item ${page==='favorites'?'active':''}`} onClick={() => goto('favorites')}>{Ico.heart} {T('nav_favorites')}</button>
+          <button className={`sidebar-nav-item ${page==='listen-later'?'active':''}`} onClick={() => goto('listen-later')}>{Ico.clock} Слушать позже</button>
         </nav>
         <div className="sidebar-pin">
           <div className="sidebar-pin-label">{T('pinned')}</div>
           <nav className="sidebar-nav">
-            <button className={`sidebar-nav-item ${page==='favorites'?'active':''}`} onClick={() => goto('favorites')}>{Ico.heart} {T('nav_favorites')}</button>
-            <button className={`sidebar-nav-item ${page==='admin'?'active':''}`} onClick={() => goto('admin')}>{Ico.upload} Админ</button>
+            {/* Admin link - hidden in production */}
           </nav>
         </div>
 
@@ -565,18 +653,99 @@ export default function App() {
             {/* ═══ SEARCH ═══ */}
             {page === 'search' && (
               <>
-                <div className="page-eyebrow">Подборки от Salaf Library</div>
-                <h1 className="page-title" style={{marginBottom:20}}>{T('search_title')}</h1>
+                <h1 className="page-title" style={{marginBottom:20}}>Поиск</h1>
                 <div className="search-bar">
                   {Ico.search}
-                  <input type="text" placeholder={T('search_placeholder')} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                  <input type="text" placeholder="Поиск по названию, лектору, тегам, транскрипту..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
-                {searchQuery.trim() ? (
+
+                {/* Filters */}
+                <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+                  {['all','lectures','series','scholars'].map(f => (
+                    <button key={f} onClick={() => setSearchFilter(f)}
+                      style={{padding:'6px 12px',borderRadius:100,fontSize:12,fontWeight:500,border:'1px solid var(--border)',cursor:'pointer',
+                        background: searchFilter === f ? 'var(--accent)' : 'transparent',
+                        color: searchFilter === f ? '#fff' : 'var(--text2)'}}>
+                      {{all:'Все',lectures:'Уроки',series:'Серии',scholars:'Лекторы'}[f]}
+                    </button>
+                  ))}
+                  <div style={{borderLeft:'1px solid var(--border)',margin:'0 4px'}} />
+                  {['all','short','medium','long','very-long'].map(d => (
+                    <button key={d} onClick={() => setDurationFilter(d)}
+                      style={{padding:'6px 12px',borderRadius:100,fontSize:12,fontWeight:500,border:'1px solid var(--border)',cursor:'pointer',
+                        background: durationFilter === d ? 'var(--accent)' : 'transparent',
+                        color: durationFilter === d ? '#fff' : 'var(--text2)'}}>
+                      {{all:'Любая',short:'до 10м',medium:'10-30м',long:'30-60м','very-long':'60+м'}[d]}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Quick tags */}
+                <div style={{display:'flex',gap:6,marginBottom:20,overflowX:'auto',paddingBottom:4}}>
+                  {['Для изучения','Перед сном','Утреннее','Для семьи','Для молодёжи','Для покаяния','Для терпения','Для радости','Для утешения'].map(tag => (
+                    <button key={tag} onClick={() => setSearchQuery(tag)}
+                      style={{padding:'5px 12px',borderRadius:100,fontSize:11,fontWeight:500,border:'1px solid var(--border)',cursor:'pointer',whiteSpace:'nowrap',
+                        background: searchQuery === tag ? 'var(--accent-bg)' : 'transparent',
+                        color: searchQuery === tag ? 'var(--accent)' : 'var(--text3)',
+                        borderColor: searchQuery === tag ? 'var(--accent)' : 'var(--border)'}}>
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Results */}
+                {searchQuery.trim() && (
                   <>
-                    <p className="section-desc">{T('search_found')}: {filteredLectures.length}</p>
-                    <LectureList tracks={filteredLectures} currentLecture={currentLecture} isPlaying={isPlaying} onPlay={playLecture} />
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}>
+                      <p style={{fontSize:13,color:'var(--text3)'}}>Найдено: {filteredLectures.length} уроков</p>
+                      <button onClick={() => { setSearchQuery(''); setSearchFilter('all'); setDurationFilter('all') }}
+                        style={{fontSize:12,color:'var(--accent)',cursor:'pointer',background:'none',border:'none'}}>Очистить фильтры</button>
+                    </div>
+
+                    {/* Filter by duration */}
+                    {(() => {
+                      let results = filteredLectures
+                      if (durationFilter === 'short') results = results.filter(l => parseDurationToMinutes(l.duration) < 10)
+                      else if (durationFilter === 'medium') results = results.filter(l => { const m = parseDurationToMinutes(l.duration); return m >= 10 && m < 30 })
+                      else if (durationFilter === 'long') results = results.filter(l => { const m = parseDurationToMinutes(l.duration); return m >= 30 && m < 60 })
+                      else if (durationFilter === 'very-long') results = results.filter(l => parseDurationToMinutes(l.duration) >= 60)
+
+                      return results.length > 0 ? (
+                        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                          {results.map(l => (
+                            <div key={l.id} style={{display:'flex',alignItems:'center',gap:12,padding:12,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,cursor:'pointer',transition:'all .15s'}}
+                              onClick={() => playLecture(l)}>
+                              <div style={{width:40,height:40,borderRadius:8,background:trackBg(l),display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{l.icon}</div>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontSize:14,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.title}</div>
+                                <div style={{fontSize:12,color:'var(--text3)'}}>{l.scholar || 'Лектор'} · {l.duration} {l.seriesId ? `· ${lecturesData.find(lec=>lec.id===l.id)?.seriesId || ''}` : ''}</div>
+                              </div>
+                              <div style={{display:'flex',gap:4}}>
+                                <button onClick={(e) => { e.stopPropagation(); toggleListenLater(l.id) }}
+                                  style={{padding:'4px 8px',borderRadius:4,fontSize:11,border:'1px solid var(--border)',background:listenLater.includes(l.id)?'var(--accent-bg)':'transparent',color:listenLater.includes(l.id)?'var(--accent)':'var(--text3)',cursor:'pointer'}}>
+                                  ⏰
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); toggleCompleted(l.id) }}
+                                  style={{padding:'4px 8px',borderRadius:4,fontSize:11,border:'1px solid var(--border)',background:isCompleted(l.id)?'rgba(34,197,94,0.1)':'transparent',color:isCompleted(l.id)?'#22c55e':'var(--text3)',cursor:'pointer'}}>
+                                  {isCompleted(l.id) ? '✓' : '○'}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="lib-empty">
+                          <div className="lib-empty-icon">🔍</div>
+                          <div className="lib-empty-title">Ничего не найдено</div>
+                          <div className="lib-empty-desc">Попробуйте изменить запрос или фильтры</div>
+                        </div>
+                      )
+                    })()}
                   </>
-                ) : (
+                )}
+
+                {/* Default state */}
+                {!searchQuery.trim() && (
                   <>
                     <div className="tag-group">
                       <div className="tag-group-header">{Ico.library} Разделы</div>
@@ -587,25 +756,9 @@ export default function App() {
                       </div>
                     </div>
                     <div className="tag-group">
-                      <div className="tag-group-header">{Ico.headphones} Настроения</div>
-                      <div className="tag-group-tags">
-                        {['Для изучения','Перед сном','Утреннее','Для семьи','Для молодёжи','Для познания','Для покаяния','Для терпения','Для радости','Для утешения'].map(t => (
-                          <button key={t} className="tag" onClick={() => setSearchQuery(t)}>🕯 {t}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="tag-group">
-                      <div className="tag-group-header">{Ico.clock} Периоды</div>
-                      <div className="tag-group-tags">
-                        {['Ранний Ислам','Средневековье','Современность','До хиджры','После хиджры'].map(t => (
-                          <button key={t} className="tag" onClick={() => setSearchQuery(t)}>{t}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="tag-group">
                       <div className="tag-group-header">{Ico.sparkles} Популярные темы</div>
                       <div className="tag-group-tags">
-                        {['Намаз','Закяат','Хадж','Таухид','Сира','Терпение','Покаяние','Смирение','Братство','Знание','Семья','Молодёжь'].map(t => (
+                        {['Намаз','Закяат','Хадж','Таухид','Сира','Терпение','Покаяние','Смирение','Знание'].map(t => (
                           <button key={t} className="tag" onClick={() => setSearchQuery(t)}>🏷 {t}</button>
                         ))}
                       </div>
@@ -955,6 +1108,38 @@ export default function App() {
               </>
             )}
 
+            {/* ═══ LISTEN LATER ═══ */}
+            {page === 'listen-later' && (
+              <>
+                <h1 className="page-title" style={{marginBottom:24}}>Слушать позже</h1>
+                {listenLater.length === 0 ? (
+                  <div className="lib-empty">
+                    <div className="lib-empty-icon">⏰</div>
+                    <div className="lib-empty-title">Список пуст</div>
+                    <div className="lib-empty-desc">Нажмите "Слушать позже" на любом уроке</div>
+                  </div>
+                ) : (
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {listenLater.map(id => {
+                      const lecture = lecturesData.find(l => l.id === id)
+                      if (!lecture) return null
+                      return (
+                        <div key={id} style={{display:'flex',alignItems:'center',gap:12,padding:12,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,cursor:'pointer'}}
+                          onClick={() => playLecture(lecture)}>
+                          <div style={{width:40,height:40,borderRadius:8,background:trackBg(lecture),display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{lecture.icon}</div>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:14,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lecture.title}</div>
+                            <div style={{fontSize:12,color:'var(--text3)'}}>{lecture.scholar || 'Лектор'} · {lecture.duration}</div>
+                          </div>
+                          <button onClick={(e) => { e.stopPropagation(); toggleListenLater(id) }} style={{padding:'6px',borderRadius:6,border:'1px solid rgba(239,68,68,0.3)',background:'transparent',color:'#ef4444',fontSize:12,cursor:'pointer'}}>✕</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
             {/* ═══ SERIES PAGE ═══ */}
             {page === 'series-page' && selectedSeries && (
               <>
@@ -1041,11 +1226,13 @@ export default function App() {
           <div className="player-center">
             <div className="player-btns">
               <button className={`player-btn ${shuffled?'active':''}`} onClick={() => setShuffled(s => !s)}>{Ico.shuffle}</button>
+              <button className="player-btn" onClick={() => { if (audioRef.current) audioRef.current.currentTime -= 10 }} style={{fontSize:11,fontWeight:700}}>-10</button>
               <button className="player-btn" onClick={playPrev}>{Ico.prev}</button>
               <button className="player-btn player-btn-play" onClick={() => currentLecture && setIsPlaying(p => !p)}>
                 {isPlaying ? Ico.pause : Ico.play}
               </button>
               <button className="player-btn" onClick={playNext}>{Ico.next}</button>
+              <button className="player-btn" onClick={() => { if (audioRef.current) audioRef.current.currentTime += 10 }} style={{fontSize:11,fontWeight:700}}>+10</button>
               <button className={`player-btn ${repeated?'active':''}`} onClick={() => setRepeated(r => !r)}>{Ico.repeat}</button>
             </div>
             <div className="player-progress">
