@@ -1616,13 +1616,13 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right Extras (Speed, Vol, Queue, A-B Repeat) */}
-          <div className="flex items-center gap-4">
-            {/* A-B Repeat trigger */}
-            <div className="flex items-center gap-1.5 border border-[var(--color-border)] rounded-xl p-0.5">
+          {/* Right Extras (Speed, Vol, A-B Repeat) */}
+          <div className="flex items-center gap-3">
+            {/* A-B Repeat */}
+            <div className="flex items-center gap-1 border border-[var(--color-border)] rounded-lg p-0.5">
               <button
                 onClick={handleSetA}
-                className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
+                className={`px-2 py-1 text-[10px] font-bold rounded transition ${
                   abPointA !== null ? "bg-[var(--color-accent)] text-black" : "text-[var(--color-text-secondary)]"
                 }`}
               >
@@ -1631,7 +1631,7 @@ export default function App() {
               <button
                 onClick={handleSetB}
                 disabled={abPointA === null}
-                className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
+                className={`px-2 py-1 text-[10px] font-bold rounded transition ${
                   abPointB !== null ? "bg-[var(--color-accent)] text-black" : "text-[var(--color-text-secondary)] disabled:opacity-40"
                 }`}
               >
@@ -1641,16 +1641,16 @@ export default function App() {
                 <button
                   onClick={handleClearAB}
                   className="px-1.5 text-[var(--color-text-secondary)] hover:text-red-400 transition"
-                  title="Clear Loop"
+                  title="Сброс"
                 >
                   <X size={12} />
                 </button>
               )}
             </div>
 
-            {/* Playback speed trigger */}
+            {/* Playback speed */}
             <div className="relative group">
-              <button className="flex items-center gap-1 text-[11px] font-bold text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl px-2.5 py-1.5">
+              <button className="flex items-center gap-1 text-[11px] font-bold text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg px-2 py-1">
                 <span>{playbackSpeed}x</span>
               </button>
               <div className="absolute bottom-full right-0 mb-2 hidden group-hover:flex flex-col bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl shadow-xl overflow-hidden py-1 z-50">
@@ -1668,13 +1668,13 @@ export default function App() {
               </div>
             </div>
 
-            {/* Mute/Volume slider */}
-            <div className="flex items-center gap-2">
+            {/* Volume */}
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setIsMuted(!isMuted)}
                 className="text-[var(--color-text-secondary)] hover:text-white transition"
               >
-                {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
               </button>
               <input
                 type="range"
@@ -1683,19 +1683,9 @@ export default function App() {
                 step={0.05}
                 value={volume}
                 onChange={(e) => setVolume(parseFloat(e.target.value))}
-                className="w-16 h-1 custom-slider"
+                className="w-14 h-1 custom-slider"
               />
             </div>
-
-            {/* Queue Toggle button */}
-            <button
-              onClick={() => setIsQueueOpen(!isQueueOpen)}
-              className={`p-2 rounded-xl border transition ${
-                isQueueOpen ? "text-[var(--color-accent)] border-[var(--color-accent)]" : "text-[var(--color-text-secondary)] border-transparent"
-              }`}
-            >
-              <ListMusic size={18} />
-            </button>
           </div>
         </div>
       )}
