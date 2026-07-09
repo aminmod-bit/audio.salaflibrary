@@ -1,8 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 import { getLectures, getScholars, getSeries, saveLectures, saveScholars, saveSeries } from '../data'
 import type { Lecture, Scholar, Series } from '../data'
+import { readAudioMetadata, getNextLessonNumber, formatFileSize } from '../lib/audioMetadata'
 
 type AdminTab = 'lectures' | 'scholars' | 'series'
+
+interface DraftLecture {
+  file: File
+  title: string
+  lessonNumber: number
+  scholarId: string
+  scholar: string
+  seriesId: string
+  categoryId: string
+  duration: string
+  coverImage: string
+  fileType: string
+  size: number
+}
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false)
@@ -24,8 +39,12 @@ export default function AdminPage() {
   const [editingScholar, setEditingScholar] = useState<Partial<Scholar> | null>(null)
   const [editingSeries, setEditingSeries] = useState<Partial<Series> | null>(null)
 
-  // File upload
+  // Batch upload
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [drafts, setDrafts] = useState<DraftLecture[]>([])
+  const [batchSpeakerId, setBatchSpeakerId] = useState('')
+  const [batchSeriesId, setBatchSeriesId] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
   const [uploadHint, setUploadHint] = useState('')
 
   useEffect(() => {
@@ -34,9 +53,7 @@ export default function AdminPage() {
   }, [])
 
   useEffect(() => {
-    if (authenticated) {
-      reloadData()
-    }
+    if (authenticated) reloadData()
   }, [authenticated])
 
   const reloadData = () => {
@@ -60,46 +77,91 @@ export default function AdminPage() {
   }
 
   // ─── FILE UPLOAD ───
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
 
-    const file = files[0]
-    const fileName = file.name.replace(/\.[^/.]+$/, '') // Remove extension
+    setIsProcessing(true)
+    const newDrafts: DraftLecture[] = []
 
-    // Auto-fill lecture form
-    setEditingLecture({
-      title: fileName,
-      scholar: '',
-      scholarId: undefined,
-      duration: '0:00',
-      icon: '📚',
-      categoryId: 'lectures',
-      src: `./audio/${file.name}`,
-      cover: undefined,
-      tags: [],
-      seriesId: undefined,
-    })
-
-    setUploadHint(`Файл: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`)
-    setActiveTab('lectures')
-
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+    for (const file of files) {
+      const metadata = await readAudioMetadata(file)
+      newDrafts.push({
+        file,
+        title: metadata.title,
+        lessonNumber: metadata.lessonNumber,
+        scholarId: batchSpeakerId || '',
+        scholar: scholars.find(s => s.id === (batchSpeakerId || ''))?.name || '',
+        seriesId: batchSeriesId || '',
+        categoryId: 'lectures',
+        duration: metadata.duration,
+        coverImage: '',
+        fileType: metadata.fileType,
+        size: metadata.size,
+      })
     }
+
+    // Sort by lesson number
+    newDrafts.sort((a, b) => a.lessonNumber - b.lessonNumber)
+
+    // Auto-assign lesson numbers if missing
+    const currentLectures = getLectures()
+    let nextNum = getNextLessonNumber(currentLectures, batchSeriesId || undefined)
+    for (const draft of newDrafts) {
+      if (draft.lessonNumber === 0) {
+        draft.lessonNumber = nextNum
+      }
+      nextNum++
+    }
+
+    setDrafts(newDrafts)
+    setIsProcessing(false)
+    setUploadHint(`Выбрано файлов: ${files.length}`)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ─── LECTURES CRUD ───
+  const updateDraft = (index: number, updates: Partial<DraftLecture>) => {
+    setDrafts(prev => prev.map((d, i) => i === index ? { ...d, ...updates } : d))
+  }
+
+  const removeDraft = (index: number) => {
+    setDrafts(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const saveAllDrafts = () => {
+    const current = getLectures()
+    const newLectures: Lecture[] = drafts.map(d => ({
+      id: Date.now() + Math.random() * 1000,
+      title: d.title,
+      scholar: d.scholar,
+      scholarId: d.scholarId || undefined,
+      duration: d.duration,
+      icon: '📚',
+      categoryId: d.categoryId,
+      src: `./audio/${d.file.name}`,
+      cover: undefined,
+      coverImage: d.coverImage,
+      tags: [],
+      seriesId: d.seriesId || undefined,
+      lessonNumber: d.lessonNumber,
+      fileType: d.fileType,
+      fileSize: d.size,
+    }))
+
+    saveLectures([...current, ...newLectures])
+    setDrafts([])
+    setUploadHint(`Сохранено: ${newLectures.length} лекций`)
+    reloadData()
+  }
+
+  // ─── SINGLE LECTURE CRUD ───
   const saveLecture = () => {
     if (!editingLecture?.title) return
     const current = getLectures()
     if (editingLecture.id && current.find(l => l.id === editingLecture.id)) {
-      // Update
       const updated = current.map(l => l.id === editingLecture.id ? { ...l, ...editingLecture } as Lecture : l)
       saveLectures(updated)
     } else {
-      // Create
       const newLecture: Lecture = {
         id: Date.now(),
         title: editingLecture.title || '',
@@ -110,13 +172,14 @@ export default function AdminPage() {
         categoryId: editingLecture.categoryId || 'lectures',
         src: editingLecture.src || '',
         cover: editingLecture.cover,
+        coverImage: editingLecture.coverImage,
         tags: editingLecture.tags || [],
         seriesId: editingLecture.seriesId,
+        lessonNumber: editingLecture.lessonNumber,
       }
       saveLectures([...current, newLecture])
     }
     setEditingLecture(null)
-    setUploadHint('')
     reloadData()
   }
 
@@ -208,7 +271,7 @@ export default function AdminPage() {
     !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // ─── LOGIN FORM ───
+  // ─── LOGIN ───
   if (!authenticated) {
     return (
       <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}>
@@ -232,26 +295,18 @@ export default function AdminPage() {
     )
   }
 
-  // ─── MAIN ADMIN UI ───
+  // ─── MAIN ───
   return (
     <div style={{minHeight:'100vh',background:'var(--bg)',color:'var(--text)',padding:24}}>
       <div style={{maxWidth:1200,margin:'0 auto'}}>
         {/* Header */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:24}}>
-          <h1 style={{fontSize:24,fontWeight:700}}>Админ-панель Salaf Audio</h1>
+          <h1 style={{fontSize:24,fontWeight:700}}>Админ-панель</h1>
           <div style={{display:'flex',gap:8}}>
-            <button onClick={() => exportJSON('speakers.json', scholars)} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>
-              📥 speakers.json
-            </button>
-            <button onClick={() => exportJSON('audio.json', lectures)} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>
-              📥 audio.json
-            </button>
-            <button onClick={() => exportJSON('series.json', series)} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>
-              📥 series.json
-            </button>
-            <button onClick={handleLogout} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',cursor:'pointer',fontSize:13}}>
-              Выйти
-            </button>
+            <button onClick={() => exportJSON('speakers.json', scholars)} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>📥 speakers.json</button>
+            <button onClick={() => exportJSON('audio.json', lectures)} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>📥 audio.json</button>
+            <button onClick={() => exportJSON('series.json', series)} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>📥 series.json</button>
+            <button onClick={handleLogout} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>Выйти</button>
           </div>
         </div>
 
@@ -259,21 +314,29 @@ export default function AdminPage() {
         <input type="text" placeholder="Поиск..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
           style={{width:'100%',maxWidth:400,padding:'10px 14px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--text)',marginBottom:16,fontSize:14}} />
 
+        {/* Batch Speaker/Series Select */}
+        <div style={{display:'flex',gap:12,marginBottom:16}}>
+          <select value={batchSpeakerId} onChange={e => setBatchSpeakerId(e.target.value)}
+            style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--text)',fontSize:13}}>
+            <option value="">Все учёные (по умолчанию)</option>
+            {scholars.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select value={batchSeriesId} onChange={e => setBatchSeriesId(e.target.value)}
+            style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--text)',fontSize:13}}>
+            <option value="">Без серии</option>
+            {series.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+
         {/* Upload Button */}
         <div style={{marginBottom:24}}>
-          <input ref={fileInputRef} type="file" accept="audio/*,.mp3,.m4a,.ogg,.wav" onChange={handleFileSelect} style={{display:'none'}} />
-          <button onClick={() => fileInputRef.current?.click()}
-            style={{padding:'12px 24px',borderRadius:8,background:'linear-gradient(135deg,#1b4332,#2d6a4f)',color:'#fff',fontSize:14,fontWeight:600,border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
-            📁 Добавить аудио с компьютера
+          <input ref={fileInputRef} type="file" accept="audio/*,.mp3,.m4a,.ogg,.wav" multiple onChange={handleFileSelect} style={{display:'none'}} />
+          <button onClick={() => fileInputRef.current?.click()} disabled={isProcessing}
+            style={{padding:'12px 24px',borderRadius:8,background:isProcessing ? 'var(--bg5)' : 'linear-gradient(135deg,#1b4332,#2d6a4f)',color:'#fff',fontSize:14,fontWeight:600,border:'none',cursor:isProcessing ? 'default' : 'pointer',display:'flex',alignItems:'center',gap:8}}>
+            {isProcessing ? '⏳ Обработка...' : '📁 Добавить аудио с компьютера'}
           </button>
-          {uploadHint && (
-            <div style={{marginTop:8,padding:'8px 12px',background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.3)',borderRadius:8,fontSize:12,color:'#22c55e'}}>
-              {uploadHint}
-            </div>
-          )}
-          <div style={{marginTop:8,fontSize:12,color:'var(--text3)'}}>
-            Поддерживаемые форматы: MP3, M4A, OGG, WAV
-          </div>
+          {uploadHint && <div style={{marginTop:8,fontSize:12,color:'var(--accent)'}}>{uploadHint}</div>}
+          <div style={{marginTop:8,fontSize:12,color:'var(--text3)'}}>Поддержка: MP3, M4A, OGG, WAV · Можно выбрать несколько файлов</div>
         </div>
 
         {/* Tabs */}
@@ -289,6 +352,75 @@ export default function AdminPage() {
           ))}
         </div>
 
+        {/* ─── DRAFTS (Batch Upload) ─── */}
+        {drafts.length > 0 && (
+          <div style={{marginBottom:24,padding:20,background:'var(--bg3)',border:'2px solid var(--accent)',borderRadius:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:16}}>
+              <h2 style={{fontSize:18,fontWeight:600}}>Черновики ({drafts.length})</h2>
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={saveAllDrafts} style={{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'#fff',fontSize:13,fontWeight:600,border:'none',cursor:'pointer'}}>
+                  💾 Сохранить все
+                </button>
+                <button onClick={() => setDrafts([])} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>
+                  Очистить
+                </button>
+              </div>
+            </div>
+
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              {drafts.map((draft, i) => (
+                <div key={i} style={{padding:16,background:'var(--bg4)',border:'1px solid var(--border)',borderRadius:10}}>
+                  <div style={{display:'grid',gridTemplateColumns:'60px 1fr 1fr 1fr 80px',gap:12,alignItems:'center'}}>
+                    {/* Number */}
+                    <input type="number" value={draft.lessonNumber} onChange={e => updateDraft(i, { lessonNumber: parseInt(e.target.value) || 0 })}
+                      style={{padding:'6px 8px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg5)',color:'var(--text)',fontSize:13,width:'100%'}} />
+
+                    {/* Title */}
+                    <input value={draft.title} onChange={e => updateDraft(i, { title: e.target.value })}
+                      style={{padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg5)',color:'var(--text)',fontSize:13}} />
+
+                    {/* Speaker */}
+                    <select value={draft.scholarId} onChange={e => {
+                      const s = scholars.find(s => s.id === e.target.value)
+                      updateDraft(i, { scholarId: e.target.value, scholar: s?.name || '' })
+                    }}
+                      style={{padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg5)',color:'var(--text)',fontSize:13}}>
+                      <option value="">Без учёного</option>
+                      {scholars.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+
+                    {/* Series */}
+                    <select value={draft.seriesId} onChange={e => updateDraft(i, { seriesId: e.target.value })}
+                      style={{padding:'6px 10px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg5)',color:'var(--text)',fontSize:13}}>
+                      <option value="">Без серии</option>
+                      {series.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+
+                    {/* Remove */}
+                    <button onClick={() => removeDraft(i)} style={{padding:'6px',borderRadius:6,border:'1px solid rgba(239,68,68,0.3)',background:'transparent',color:'#ef4444',fontSize:12,cursor:'pointer'}}>✕</button>
+                  </div>
+
+                  {/* Info row */}
+                  <div style={{display:'flex',gap:16,marginTop:8,fontSize:11,color:'var(--text3)'}}>
+                    <span>📁 {draft.file.name}</span>
+                    <span>📏 {formatFileSize(draft.size)}</span>
+                    <span>⏱ {draft.duration}</span>
+                    <span>🎵 {draft.fileType.toUpperCase()}</span>
+                    {draft.coverImage && <span>🖼 Есть обложка</span>}
+                  </div>
+
+                  {/* Cover preview */}
+                  {draft.coverImage && (
+                    <div style={{marginTop:8}}>
+                      <img src={draft.coverImage} alt="Cover" style={{width:48,height:48,borderRadius:6,objectFit:'cover'}} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ─── LECTURES TAB ─── */}
         {activeTab === 'lectures' && (
           <div>
@@ -296,7 +428,7 @@ export default function AdminPage() {
               <h2 style={{fontSize:18,fontWeight:600}}>Лекции</h2>
               <button onClick={() => setEditingLecture({title:'',scholar:'',duration:'0:00',icon:'📚',categoryId:'lectures',src:'',tags:[]})}
                 style={{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'#fff',fontSize:13,fontWeight:600,border:'none',cursor:'pointer'}}>
-                + Добавить лекцию вручную
+                + Вручную
               </button>
             </div>
 
@@ -321,27 +453,14 @@ export default function AdminPage() {
                     <option value="">Без серии</option>
                     {series.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
-                  <select value={editingLecture.categoryId || 'lectures'} onChange={e => setEditingLecture({...editingLecture, categoryId: e.target.value})}
-                    style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg4)',color:'var(--text)',fontSize:13}}>
-                    <option value="lectures">Лекции</option>
-                    <option value="series">Серии</option>
-                    <option value="reminders">Напоминания</option>
-                  </select>
-                  <input placeholder="Длительность (0:00)" value={editingLecture.duration || ''} onChange={e => setEditingLecture({...editingLecture, duration: e.target.value})}
+                  <input placeholder="Длительность" value={editingLecture.duration || ''} onChange={e => setEditingLecture({...editingLecture, duration: e.target.value})}
                     style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg4)',color:'var(--text)',fontSize:13}} />
-                  <input placeholder="Теги (через запятую)" value={editingLecture.tags?.join(', ') || ''} onChange={e => setEditingLecture({...editingLecture, tags: e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})}
-                    style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg4)',color:'var(--text)',fontSize:13}} />
-                  <input placeholder="URL обложки" value={editingLecture.cover || ''} onChange={e => setEditingLecture({...editingLecture, cover: e.target.value})}
+                  <input placeholder="Номер урока" type="number" value={editingLecture.lessonNumber || ''} onChange={e => setEditingLecture({...editingLecture, lessonNumber: parseInt(e.target.value) || 0})}
                     style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg4)',color:'var(--text)',fontSize:13}} />
                 </div>
-                {editingLecture.src && (
-                  <div style={{marginTop:12,padding:'8px 12px',background:'rgba(59,130,246,0.1)',border:'1px solid rgba(59,130,246,0.3)',borderRadius:8,fontSize:12,color:'#3b82f6'}}>
-                    💡 Чтобы аудио работало постоянно, положите файл в <code>public/audio/</code> с таким же именем.
-                  </div>
-                )}
                 <div style={{display:'flex',gap:8,marginTop:12}}>
                   <button onClick={saveLecture} style={{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'#fff',fontSize:13,fontWeight:600,border:'none',cursor:'pointer'}}>Сохранить</button>
-                  <button onClick={() => { setEditingLecture(null); setUploadHint('') }} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>Отмена</button>
+                  <button onClick={() => setEditingLecture(null)} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>Отмена</button>
                 </div>
               </div>
             )}
@@ -349,10 +468,19 @@ export default function AdminPage() {
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
               {filteredLectures.map(l => (
                 <div key={l.id} style={{display:'flex',alignItems:'center',gap:12,padding:12,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10}}>
-                  <div style={{width:40,height:40,borderRadius:8,background:'var(--bg5)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{l.icon}</div>
+                  {l.coverImage ? (
+                    <img src={l.coverImage} alt="" style={{width:40,height:40,borderRadius:6,objectFit:'cover',flexShrink:0}} />
+                  ) : (
+                    <div style={{width:40,height:40,borderRadius:8,background:'var(--bg5)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{l.icon}</div>
+                  )}
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:14,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.title}</div>
-                    <div style={{fontSize:12,color:'var(--text3)'}}>{l.scholar} · {l.duration} {l.seriesId ? `· ${series.find(s=>s.id===l.seriesId)?.name || ''}` : ''}</div>
+                    <div style={{fontSize:14,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {l.lessonNumber ? `${l.lessonNumber}. ` : ''}{l.title}
+                    </div>
+                    <div style={{fontSize:12,color:'var(--text3)'}}>
+                      {l.scholar || 'Без учёного'} · {l.duration}
+                      {l.seriesId ? ` · ${series.find(s=>s.id===l.seriesId)?.name || ''}` : ''}
+                    </div>
                   </div>
                   <button onClick={() => setEditingLecture(l)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:12,cursor:'pointer'}}>Изменить</button>
                   <button onClick={() => deleteLecture(l.id)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid rgba(239,68,68,0.3)',background:'transparent',color:'#ef4444',fontSize:12,cursor:'pointer'}}>Удалить</button>
@@ -369,13 +497,11 @@ export default function AdminPage() {
               <h2 style={{fontSize:18,fontWeight:600}}>Учёные</h2>
               <button onClick={() => setEditingScholar({name:'',nameAr:'',role:'Учёный',description:'',imageUrl:'',tags:[]})}
                 style={{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'#fff',fontSize:13,fontWeight:600,border:'none',cursor:'pointer'}}>
-                + Добавить учёного
+                + Добавить
               </button>
             </div>
-
             {editingScholar && (
               <div style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:12,padding:20,marginBottom:16}}>
-                <h3 style={{marginBottom:12,fontSize:15,fontWeight:600}}>{editingScholar.id ? 'Редактировать' : 'Новый учёный'}</h3>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                   <input placeholder="Имя *" value={editingScholar.name || ''} onChange={e => setEditingScholar({...editingScholar, name: e.target.value})}
                     style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg4)',color:'var(--text)',fontSize:13}} />
@@ -383,11 +509,9 @@ export default function AdminPage() {
                     style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg4)',color:'var(--text)',fontSize:13}} />
                   <select value={editingScholar.role || 'Учёный'} onChange={e => setEditingScholar({...editingScholar, role: e.target.value})}
                     style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg4)',color:'var(--text)',fontSize:13}}>
-                    <option>Учёный</option>
-                    <option>Лектор</option>
-                    <option>Чтец</option>
+                    <option>Учёный</option><option>Лектор</option><option>Чтец</option>
                   </select>
-                  <input placeholder="URL фото (оставьте пустым для инициалов)" value={editingScholar.imageUrl || ''} onChange={e => setEditingScholar({...editingScholar, imageUrl: e.target.value})}
+                  <input placeholder="URL фото" value={editingScholar.imageUrl || ''} onChange={e => setEditingScholar({...editingScholar, imageUrl: e.target.value})}
                     style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg4)',color:'var(--text)',fontSize:13}} />
                 </div>
                 <textarea placeholder="Описание" value={editingScholar.description || ''} onChange={e => setEditingScholar({...editingScholar, description: e.target.value})}
@@ -398,7 +522,6 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
-
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:12}}>
               {filteredScholars.map(s => (
                 <div key={s.id} style={{padding:16,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:12}}>
@@ -408,10 +531,9 @@ export default function AdminPage() {
                     </div>
                     <div>
                       <div style={{fontSize:14,fontWeight:600}}>{s.name}</div>
-                      <div style={{fontSize:12,color:'var(--text3)'}}>{s.role} {s.nameAr && `· ${s.nameAr}`}</div>
+                      <div style={{fontSize:12,color:'var(--text3)'}}>{s.role}</div>
                     </div>
                   </div>
-                  <div style={{fontSize:12,color:'var(--text3)',marginBottom:8,lineHeight:1.4}}>{(s.description || '').slice(0,100)}{s.description?.length > 100 ? '...' : ''}</div>
                   <div style={{fontSize:11,color:'var(--text3)'}}>Уроков: {lectures.filter(l => l.scholarId === s.id).length}</div>
                   <div style={{display:'flex',gap:8,marginTop:8}}>
                     <button onClick={() => setEditingScholar(s)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:12,cursor:'pointer'}}>Изменить</button>
@@ -430,13 +552,11 @@ export default function AdminPage() {
               <h2 style={{fontSize:18,fontWeight:600}}>Серии</h2>
               <button onClick={() => setEditingSeries({name:'',description:'',tags:[]})}
                 style={{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'#fff',fontSize:13,fontWeight:600,border:'none',cursor:'pointer'}}>
-                + Добавить серию
+                + Добавить
               </button>
             </div>
-
             {editingSeries && (
               <div style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:12,padding:20,marginBottom:16}}>
-                <h3 style={{marginBottom:12,fontSize:15,fontWeight:600}}>{editingSeries.id ? 'Редактировать' : 'Новая серия'}</h3>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                   <input placeholder="Название *" value={editingSeries.name || ''} onChange={e => setEditingSeries({...editingSeries, name: e.target.value})}
                     style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg4)',color:'var(--text)',fontSize:13}} />
@@ -454,15 +574,12 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
-
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:12}}>
               {filteredSeries.map(s => (
                 <div key={s.id} style={{padding:16,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:12}}>
                   <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>{s.name}</div>
                   <div style={{fontSize:12,color:'var(--text3)',marginBottom:4}}>{s.description || 'Без описания'}</div>
-                  <div style={{fontSize:11,color:'var(--text3)'}}>
-                    Учёный: {scholars.find(sc => sc.id === s.scholarId)?.name || '—'} · Уроков: {lectures.filter(l => l.seriesId === s.id).length}
-                  </div>
+                  <div style={{fontSize:11,color:'var(--text3)'}}>Уроков: {lectures.filter(l => l.seriesId === s.id).length}</div>
                   <div style={{display:'flex',gap:8,marginTop:8}}>
                     <button onClick={() => setEditingSeries(s)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:12,cursor:'pointer'}}>Изменить</button>
                     <button onClick={() => deleteSeriesItem(s.id)} style={{padding:'6px 12px',borderRadius:6,border:'1px solid rgba(239,68,68,0.3)',background:'transparent',color:'#ef4444',fontSize:12,cursor:'pointer'}}>Удалить</button>
@@ -472,26 +589,6 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-
-        {/* Instructions */}
-        <div style={{marginTop:32,padding:20,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:12}}>
-          <h3 style={{fontSize:14,fontWeight:600,marginBottom:8}}>Как добавить аудио:</h3>
-          <ol style={{fontSize:13,color:'var(--text2)',lineHeight:1.8,paddingLeft:20}}>
-            <li>Нажмите "📁 Добавить аудио с компьютера"</li>
-            <li>Выберите MP3/M4A/OGG/WAV файл</li>
-            <li>Название заполнится автоматически из имени файла</li>
-            <li>Выберите учёного и серию (если нужно)</li>
-            <li>Нажмите "Сохранить"</li>
-            <li>Аудио сразу появится на сайте</li>
-          </ol>
-          <h3 style={{fontSize:14,fontWeight:600,marginTop:16,marginBottom:8}}>Как сохранить навсегда:</h3>
-          <ol style={{fontSize:13,color:'var(--text2)',lineHeight:1.8,paddingLeft:20}}>
-            <li>Скачайте JSON файлы кнопками "📥"</li>
-            <li>Скопируйте файлы в <code>public/data/</code></li>
-            <li>Скопируйте аудио файлы в <code>public/audio/</code></li>
-            <li>Выполните <code>git add . && git commit -m "Update" && git push</code></li>
-          </ol>
-        </div>
       </div>
     </div>
   )

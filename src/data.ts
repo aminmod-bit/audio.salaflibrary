@@ -17,8 +17,12 @@ export interface Lecture {
   categoryId: string
   src: string
   cover?: string
+  coverImage?: string
   tags?: string[]
   seriesId?: string
+  lessonNumber?: number
+  fileType?: string
+  fileSize?: number
 }
 
 export interface Scholar {
