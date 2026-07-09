@@ -312,9 +312,14 @@ export default function App() {
       <aside className="sidebar">
         <div className="sidebar-logo">
           <span className="dot" /> SALAF LIBRARY
-          <button className="theme-toggle-btn" onClick={() => setThemeOpen(!themeOpen)} title="Сменить тему">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z" fill="none"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7Z"/><circle cx="9" cy="11" r="1" fill="currentColor"/><circle cx="12" cy="8" r="1" fill="currentColor"/><circle cx="15" cy="11" r="1" fill="currentColor"/></svg>
-          </button>
+          <div className="sidebar-actions">
+            <button className="lang-toggle-btn" onClick={() => setLangHandler(lang === 'ru' ? 'en' : lang === 'en' ? 'tg' : 'ru')} title="Сменить язык">
+              {lang === 'ru' ? 'РУ' : lang === 'en' ? 'EN' : 'ТҶ'}
+            </button>
+            <button className="theme-toggle-btn" onClick={() => setThemeOpen(!themeOpen)} title="Сменить тему">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z" fill="none"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7Z"/><circle cx="9" cy="11" r="1" fill="currentColor"/><circle cx="12" cy="8" r="1" fill="currentColor"/><circle cx="15" cy="11" r="1" fill="currentColor"/></svg>
+            </button>
+          </div>
         </div>
         {themeOpen && (
           <div className="theme-dropdown">
@@ -348,7 +353,6 @@ export default function App() {
           <button className={`sidebar-nav-item ${page==='search'?'active':''}`} onClick={() => goto('search')}>{Ico.search} {T('nav_search')}</button>
           <button className={`sidebar-nav-item ${page==='playlists'?'active':''}`} onClick={() => goto('playlists')}>{Ico.library} {T('nav_playlist')}</button>
           <button className={`sidebar-nav-item ${page==='library'?'active':''}`} onClick={() => goto('library')}>{Ico.library} {T('nav_library')}</button>
-          <button className={`sidebar-nav-item ${page==='profile'?'active':''}`} onClick={() => goto('profile')}>{Ico.user} {T('nav_profile')}</button>
         </nav>
         <div className="sidebar-pin">
           <div className="sidebar-pin-label">{T('pinned')}</div>
@@ -951,7 +955,7 @@ export default function App() {
           <button className={`mobile-nav-item ${page==='home'?'active':''}`} onClick={() => { setActiveCategory(null); goto('home') }}>{Ico.home}<span>Главная</span></button>
           <button className={`mobile-nav-item ${page==='search'?'active':''}`} onClick={() => goto('search')}>{Ico.search}<span>Поиск</span></button>
           <button className={`mobile-nav-item ${page==='library'?'active':''}`} onClick={() => goto('library')}>{Ico.library}<span>Библиотека</span></button>
-          <button className={`mobile-nav-item ${page==='profile'?'active':''}`} onClick={() => goto('profile')}>{Ico.user}<span>Профиль</span></button>
+          <button className={`mobile-nav-item ${page==='favorites'?'active':''}`} onClick={() => goto('favorites')}>{Ico.heart}<span>Избранное</span></button>
         </div>
       </nav>
 
