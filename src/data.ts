@@ -23,6 +23,14 @@ export interface Lecture {
   lessonNumber?: number
   fileType?: string
   fileSize?: number
+  transcript?: string
+  notes?: string
+  summary?: string
+  relatedBookIds?: string[]
+  relatedArticleIds?: string[]
+  relatedAzkarIds?: string[]
+  relatedHadithIds?: string[]
+  salafLibraryUrl?: string
 }
 
 export interface Scholar {

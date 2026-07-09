@@ -6,6 +6,7 @@ import CursorGlow from './components/effects/CursorGlow'
 import NatureBackground from './components/effects/NatureBackground'
 import { t, type Lang } from './i18n'
 import AdminPage from './pages/AdminPage'
+import { saveProgress, getRecentProgress, getAudioSpeed, setAudioSpeed, startSleepTimer, clearSleepTimer, getSleepTimerRemaining } from './lib/audioUtils'
 import './App.css'
 
 /* ─── SVG Icons ─── */
@@ -88,7 +89,7 @@ function getSpeakerGradient(id: string): string {
   return gradients[id] || 'linear-gradient(135deg, #333, #555)'
 }
 
-type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'playlists' | 'rooms' | 'daily-playlist' | 'scholarsData' | 'scholar' | 'admin'
+type Page = 'home' | 'search' | 'library' | 'category' | 'profile' | 'favorites' | 'playlists' | 'rooms' | 'daily-playlist' | 'scholarsData' | 'scholar' | 'admin' | 'series-page'
 
 /* ─── App ─── */
 export default function App() {
@@ -126,6 +127,10 @@ export default function App() {
   const [selectedScholar, setselectedScholar] = useState<Scholar | null>(null)
   const [scholarSearch, setScholarSearch] = useState('')
   const [scholarRoleFilter, setScholarRoleFilter] = useState<string>('all')
+  const [playbackSpeed, setPlaybackSpeed] = useState(getAudioSpeed())
+  const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(null)
+  const [sleepTimerRemaining, setSleepTimerRemaining] = useState(0)
+  const [selectedSeries] = useState<any>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -154,6 +159,31 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', currentTheme)
   }, [currentTheme])
+
+  // Sync playback speed with audio element
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed
+    }
+    setAudioSpeed(playbackSpeed)
+  }, [playbackSpeed])
+
+  // Sleep timer countdown
+  useEffect(() => {
+    if (sleepTimerMinutes === null) return
+    const interval = setInterval(() => {
+      const remaining = getSleepTimerRemaining()
+      setSleepTimerRemaining(remaining)
+      if (remaining <= 0) {
+        setSleepTimerMinutes(null)
+        if (audioRef.current) {
+          audioRef.current.pause()
+          setIsPlaying(false)
+        }
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [sleepTimerMinutes])
 
   const trackBg = (t: Lecture) => categories.find(c => c.id === t.categoryId)?.gradient || 'linear-gradient(135deg,#333,#555)'
   const catBg = (c: Category) => c.gradient
@@ -217,10 +247,16 @@ export default function App() {
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
+    let progressSaveCounter = 0
     const onTimeUpdate = () => {
       if (audio.duration) {
         setProgress(audio.currentTime / audio.duration)
         setCurrentTime(audio.currentTime)
+        // Save progress every 5 seconds
+        progressSaveCounter++
+        if (progressSaveCounter % 5 === 0 && currentLecture) {
+          saveProgress(currentLecture.id, audio.currentTime, audio.duration)
+        }
       }
     }
     const onEnded = () => playNext()
@@ -415,6 +451,39 @@ export default function App() {
                   <div className="hero-card-art"><div className="hero-card-art-inner" style={{background:'linear-gradient(135deg,var(--accent),#7b2cbf)'}}>🕌</div></div>
                   </div>
                 </TiltSpotlightCard>
+
+                {/* Continue Listening */}
+                {getRecentProgress(3).length > 0 && (
+                  <div style={{marginBottom:32}}>
+                    <div className="section-header" style={{justifyContent:'space-between'}}>
+                      <h3 className="section-title" style={{margin:0}}>Продолжить прослушивание</h3>
+                    </div>
+                    <div style={{display:'flex',gap:12,overflowX:'auto',padding:'8px 0'}}>
+                      {getRecentProgress(3).map(p => {
+                        const lecture = lecturesData.find(l => l.id === p.lectureId)
+                        if (!lecture) return null
+                        const pct = p.duration > 0 ? (p.currentTime / p.duration) * 100 : 0
+                        return (
+                          <div key={p.lectureId} onClick={() => {
+                            playLecture(lecture)
+                            setTimeout(() => {
+                              if (audioRef.current) audioRef.current.currentTime = p.currentTime
+                            }, 100)
+                          }}
+                            style={{flexShrink:0,width:200,padding:12,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,cursor:'pointer',transition:'all .2s'}}
+                          >
+                            <div style={{fontSize:13,fontWeight:600,marginBottom:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{lecture.title}</div>
+                            <div style={{fontSize:11,color:'var(--text3)',marginBottom:8}}>{lecture.scholar || 'Лектор'}</div>
+                            <div style={{height:3,background:'var(--bg5)',borderRadius:2,overflow:'hidden'}}>
+                              <div style={{height:'100%',width:`${pct}%`,background:'var(--accent)',borderRadius:2}} />
+                            </div>
+                            <div style={{fontSize:10,color:'var(--text3)',marginTop:4}}>{Math.round(pct)}% · {lecture.duration}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* AI Banner */}
                 <TiltSpotlightCard maxTilt={6} glowColor="rgba(139,92,246,0.2)" style={{borderRadius:14,marginBottom:40}}>
@@ -886,6 +955,54 @@ export default function App() {
               </>
             )}
 
+            {/* ═══ SERIES PAGE ═══ */}
+            {page === 'series-page' && selectedSeries && (
+              <>
+                <button className="back-btn" onClick={() => goto('home')}>{Ico.back} Назад</button>
+                <div style={{display:'flex',gap:24,alignItems:'flex-start',marginBottom:32}}>
+                  <div style={{width:160,height:160,borderRadius:14,background:'linear-gradient(135deg,#3c096c,#7b2cbf)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:64,flexShrink:0,boxShadow:'0 8px 32px rgba(0,0,0,0.4)'}}>
+                    📖
+                  </div>
+                  <div>
+                    <div className="page-eyebrow">Серия</div>
+                    <h1 className="page-title" style={{marginBottom:4}}>{selectedSeries.name}</h1>
+                    <p className="page-subtitle" style={{marginBottom:12}}>{selectedSeries.description || 'Описание отсутствует'}</p>
+                    <div style={{fontSize:13,color:'var(--text3)'}}>
+                      {lecturesData.filter(l => l.seriesId === selectedSeries.id).length} уроков
+                      {selectedSeries.scholarId && ` · ${scholarsData.find(s => s.id === selectedSeries.scholarId)?.name || ''}`}
+                    </div>
+                  </div>
+                </div>
+                <h3 className="section-title" style={{margin:'0 0 12px'}}>Уроки серии</h3>
+                <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  {lecturesData
+                    .filter(l => l.seriesId === selectedSeries.id)
+                    .sort((a, b) => (a.lessonNumber || 0) - (b.lessonNumber || 0))
+                    .map(l => (
+                      <div key={l.id} style={{display:'flex',alignItems:'center',gap:12,padding:12,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,cursor:'pointer',transition:'all .15s'}}
+                        onClick={() => playLecture(l, lecturesData.filter(lec => lec.seriesId === selectedSeries.id).sort((a, b) => (a.lessonNumber || 0) - (b.lessonNumber || 0)))}>
+                        <div style={{width:32,height:32,borderRadius:8,background:currentLecture?.id===l.id?'var(--accent)':'var(--bg5)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:600,color:currentLecture?.id===l.id?'#fff':'var(--text3)',flexShrink:0}}>
+                          {l.lessonNumber || '—'}
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:14,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.title}</div>
+                          <div style={{fontSize:12,color:'var(--text3)'}}>{l.duration}</div>
+                        </div>
+                        {currentLecture?.id===l.id && isPlaying && (
+                          <div style={{color:'var(--accent)'}}>{Ico.pause}</div>
+                        )}
+                      </div>
+                    ))}
+                  {lecturesData.filter(l => l.seriesId === selectedSeries.id).length === 0 && (
+                    <div className="lib-empty">
+                      <div className="lib-empty-icon">📚</div>
+                      <div className="lib-empty-title">Уроки будут добавлены</div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
             {/* ═══ ROOMS ═══ */}
             {page === 'rooms' && (
               <>
@@ -944,6 +1061,43 @@ export default function App() {
               <button className="player-extra-btn" onClick={() => currentLecture && setNowPlaying(true)}>{Ico.heart}</button>
               <button className="player-extra-btn" onClick={() => setQueueOpen(true)}>{Ico.list}</button>
               <button className="player-extra-btn" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCtxMenu({x: Math.min(rect.left, window.innerWidth - 240), y: Math.max(8, rect.top - 320)}) }}>{Ico.dots}</button>
+            </div>
+            {/* Speed control */}
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              {[0.75, 1, 1.25, 1.5, 2].map(s => (
+                <button key={s} onClick={() => setPlaybackSpeed(s)}
+                  style={{padding:'2px 6px',borderRadius:4,fontSize:10,fontWeight:600,border:'1px solid',cursor:'pointer',
+                    background: playbackSpeed === s ? 'var(--accent)' : 'transparent',
+                    color: playbackSpeed === s ? '#fff' : 'var(--text3)',
+                    borderColor: playbackSpeed === s ? 'var(--accent)' : 'var(--border)'}}>
+                  {s}x
+                </button>
+              ))}
+            </div>
+            {/* Sleep timer */}
+            <div style={{position:'relative'}}>
+              <button className="player-extra-btn" onClick={() => {
+                if (sleepTimerMinutes !== null) {
+                  clearSleepTimer()
+                  setSleepTimerMinutes(null)
+                  setSleepTimerRemaining(0)
+                } else {
+                  const mins = 30
+                  startSleepTimer(mins, () => {
+                    setSleepTimerMinutes(null)
+                    setSleepTimerRemaining(0)
+                  })
+                  setSleepTimerMinutes(mins)
+                }
+              }}
+                style={{color: sleepTimerMinutes ? 'var(--accent)' : undefined, position:'relative'}}>
+                {Ico.clock}
+                {sleepTimerMinutes && (
+                  <span style={{position:'absolute',top:-4,right:-4,background:'var(--accent)',color:'#fff',fontSize:8,padding:'1px 3px',borderRadius:4}}>
+                    {Math.ceil(sleepTimerRemaining / 60000)}
+                  </span>
+                )}
+              </button>
             </div>
             <div className="player-vol">
               <div onClick={() => setMuted(m => !m)}>{muted ? Ico.volMute : Ico.vol}</div>
