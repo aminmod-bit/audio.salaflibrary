@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getLectures, getScholars, getSeries, saveLectures, saveScholars, saveSeries } from '../data'
 import type { Lecture, Scholar, Series } from '../data'
 
@@ -23,6 +23,10 @@ export default function AdminPage() {
   const [editingLecture, setEditingLecture] = useState<Partial<Lecture> | null>(null)
   const [editingScholar, setEditingScholar] = useState<Partial<Scholar> | null>(null)
   const [editingSeries, setEditingSeries] = useState<Partial<Series> | null>(null)
+
+  // File upload
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadHint, setUploadHint] = useState('')
 
   useEffect(() => {
     const auth = localStorage.getItem('salaf-admin-auth')
@@ -55,6 +59,37 @@ export default function AdminPage() {
     setAuthenticated(false)
   }
 
+  // ─── FILE UPLOAD ───
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    const file = files[0]
+    const fileName = file.name.replace(/\.[^/.]+$/, '') // Remove extension
+
+    // Auto-fill lecture form
+    setEditingLecture({
+      title: fileName,
+      scholar: '',
+      scholarId: undefined,
+      duration: '0:00',
+      icon: '📚',
+      categoryId: 'lectures',
+      src: `./audio/${file.name}`,
+      cover: undefined,
+      tags: [],
+      seriesId: undefined,
+    })
+
+    setUploadHint(`Файл: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`)
+    setActiveTab('lectures')
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   // ─── LECTURES CRUD ───
   const saveLecture = () => {
     if (!editingLecture?.title) return
@@ -81,6 +116,7 @@ export default function AdminPage() {
       saveLectures([...current, newLecture])
     }
     setEditingLecture(null)
+    setUploadHint('')
     reloadData()
   }
 
@@ -223,6 +259,23 @@ export default function AdminPage() {
         <input type="text" placeholder="Поиск..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
           style={{width:'100%',maxWidth:400,padding:'10px 14px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--text)',marginBottom:16,fontSize:14}} />
 
+        {/* Upload Button */}
+        <div style={{marginBottom:24}}>
+          <input ref={fileInputRef} type="file" accept="audio/*,.mp3,.m4a,.ogg,.wav" onChange={handleFileSelect} style={{display:'none'}} />
+          <button onClick={() => fileInputRef.current?.click()}
+            style={{padding:'12px 24px',borderRadius:8,background:'linear-gradient(135deg,#1b4332,#2d6a4f)',color:'#fff',fontSize:14,fontWeight:600,border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
+            📁 Добавить аудио с компьютера
+          </button>
+          {uploadHint && (
+            <div style={{marginTop:8,padding:'8px 12px',background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.3)',borderRadius:8,fontSize:12,color:'#22c55e'}}>
+              {uploadHint}
+            </div>
+          )}
+          <div style={{marginTop:8,fontSize:12,color:'var(--text3)'}}>
+            Поддерживаемые форматы: MP3, M4A, OGG, WAV
+          </div>
+        </div>
+
         {/* Tabs */}
         <div style={{display:'flex',gap:8,marginBottom:24}}>
           {(['lectures', 'scholars', 'series'] as const).map(tab => (
@@ -243,7 +296,7 @@ export default function AdminPage() {
               <h2 style={{fontSize:18,fontWeight:600}}>Лекции</h2>
               <button onClick={() => setEditingLecture({title:'',scholar:'',duration:'0:00',icon:'📚',categoryId:'lectures',src:'',tags:[]})}
                 style={{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'#fff',fontSize:13,fontWeight:600,border:'none',cursor:'pointer'}}>
-                + Добавить лекцию
+                + Добавить лекцию вручную
               </button>
             </div>
 
@@ -281,9 +334,14 @@ export default function AdminPage() {
                   <input placeholder="URL обложки" value={editingLecture.cover || ''} onChange={e => setEditingLecture({...editingLecture, cover: e.target.value})}
                     style={{padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg4)',color:'var(--text)',fontSize:13}} />
                 </div>
+                {editingLecture.src && (
+                  <div style={{marginTop:12,padding:'8px 12px',background:'rgba(59,130,246,0.1)',border:'1px solid rgba(59,130,246,0.3)',borderRadius:8,fontSize:12,color:'#3b82f6'}}>
+                    💡 Чтобы аудио работало постоянно, положите файл в <code>public/audio/</code> с таким же именем.
+                  </div>
+                )}
                 <div style={{display:'flex',gap:8,marginTop:12}}>
                   <button onClick={saveLecture} style={{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'#fff',fontSize:13,fontWeight:600,border:'none',cursor:'pointer'}}>Сохранить</button>
-                  <button onClick={() => setEditingLecture(null)} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>Отмена</button>
+                  <button onClick={() => { setEditingLecture(null); setUploadHint('') }} style={{padding:'8px 16px',borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--text2)',fontSize:13,cursor:'pointer'}}>Отмена</button>
                 </div>
               </div>
             )}
@@ -417,12 +475,21 @@ export default function AdminPage() {
 
         {/* Instructions */}
         <div style={{marginTop:32,padding:20,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:12}}>
-          <h3 style={{fontSize:14,fontWeight:600,marginBottom:8}}>Как сохранить навсегда:</h3>
+          <h3 style={{fontSize:14,fontWeight:600,marginBottom:8}}>Как добавить аудио:</h3>
           <ol style={{fontSize:13,color:'var(--text2)',lineHeight:1.8,paddingLeft:20}}>
-            <li>Добавьте данные в админке</li>
-            <li>Нажмите кнопки "📥 speakers.json", "📥 audio.json", "📥 series.json"</li>
-            <li>Скачанные файлы замените в папке <code>public/data/</code></li>
-            <li>Выполните <code>git add . && git commit -m "Update data" && git push</code></li>
+            <li>Нажмите "📁 Добавить аудио с компьютера"</li>
+            <li>Выберите MP3/M4A/OGG/WAV файл</li>
+            <li>Название заполнится автоматически из имени файла</li>
+            <li>Выберите учёного и серию (если нужно)</li>
+            <li>Нажмите "Сохранить"</li>
+            <li>Аудио сразу появится на сайте</li>
+          </ol>
+          <h3 style={{fontSize:14,fontWeight:600,marginTop:16,marginBottom:8}}>Как сохранить навсегда:</h3>
+          <ol style={{fontSize:13,color:'var(--text2)',lineHeight:1.8,paddingLeft:20}}>
+            <li>Скачайте JSON файлы кнопками "📥"</li>
+            <li>Скопируйте файлы в <code>public/data/</code></li>
+            <li>Скопируйте аудио файлы в <code>public/audio/</code></li>
+            <li>Выполните <code>git add . && git commit -m "Update" && git push</code></li>
           </ol>
         </div>
       </div>
