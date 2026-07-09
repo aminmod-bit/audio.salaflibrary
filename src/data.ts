@@ -310,6 +310,52 @@ export const THEMES = [
   { id: "nature", name: { ru: "Природа", en: "Nature", tg: "Табиат" } },
 ];
 
+// Functions for admin panel compatibility
+export interface ScholarBook {
+  id: string
+  scholarId: string
+  title: string
+  titleAr: string
+  description: string
+  coverImage: string
+  color: string
+  order: number
+}
+
+export function getScholarBooks(): ScholarBook[] {
+  return [];
+}
+
+export function saveScholarBooks(books: ScholarBook[]): void {
+  // Not used in this version
+}
+
+export function getLectures(): Lecture[] {
+  const saved = localStorage.getItem('salaf_custom_lectures');
+  return saved ? JSON.parse(saved) : LECTURES;
+}
+
+export function getScholars(): Scholar[] {
+  return SCHOLARS;
+}
+
+export function getSeries(): any[] {
+  return [];
+}
+
+export function saveLectures(lectures: Lecture[]): void {
+  localStorage.setItem('salaf_custom_lectures', JSON.stringify(lectures));
+  window.dispatchEvent(new Event('salaf-audio-data-updated'));
+}
+
+export function saveScholars(scholars: Scholar[]): void {
+  // Scholars are static in this version
+}
+
+export function saveSeries(series: any[]): void {
+  // Series not used in this version
+}
+
 export const i18n = {
   ru: {
     title: "Salaf Library Audio",
