@@ -682,7 +682,7 @@ export default function App() {
 
                 {/* Playlists Section - YouTube style like Photo 4 */}
                 <div className="section-header" style={{marginTop:48,justifyContent:'space-between'}}>
-                  <h3 className="section-title" style={{margin:0}}>Подборки по темам</h3>
+                  <h3 className="section-title" style={{margin:0}}>Библиотека</h3>
                   <button className="hero-btn hero-btn-secondary" onClick={() => goto('library')}>Посмотреть все</button>
                 </div>
                 <div className="playlists-yt-grid">
@@ -829,24 +829,10 @@ export default function App() {
 
                 {/* Default state */}
                 {!searchQuery.trim() && (
-                  <>
-                    <div className="tag-group">
-                      <div className="tag-group-header">{Ico.library} Разделы</div>
-                      <div className="tag-group-tags">
-                        {categories.map(c => (
-                          <button key={c.id} className="tag" onClick={() => { setActiveCategory(c); goto('category') }}>{c.icon} {c.name}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="tag-group">
-                      <div className="tag-group-header">{Ico.sparkles} Популярные темы</div>
-                      <div className="tag-group-tags">
-                        {['Намаз','Закяат','Хадж','Таухид','Сира','Терпение','Покаяние','Смирение','Знание'].map(t => (
-                          <button key={t} className="tag" onClick={() => setSearchQuery(t)}>🏷 {t}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
+                  <div className="lib-empty">
+                    <div className="lib-empty-icon">🔍</div>
+                    <div className="lib-empty-title">Введите запрос для поиска</div>
+                  </div>
                 )}
               </>
             )}
@@ -854,11 +840,11 @@ export default function App() {
             {/* ═══ PLAYLISTS ═══ */}
             {page === 'playlists' && (
               <>
-                <h1 className="page-title" style={{marginBottom:20}}>Подборки</h1>
+                <h1 className="page-title" style={{marginBottom:20}}>Библиотека</h1>
                 <div className="lib-tabs" style={{marginBottom:20}}>
                   {['all','recent','mine'].map(t => (
                     <button key={t} className={`lib-tab ${t==='all'?'active':''}`}>
-                      {{all:'Недавно добавленные',recent:'Подборки',mine:'Мои'}[t]}
+                      {{all:'Недавно добавленные',recent:'Библиотека',mine:'Мои'}[t]}
                     </button>
                   ))}
                 </div>
