@@ -1,316 +1,49 @@
-export interface Translation {
-  ru: string;
-  en: string;
-  tg: string;
+export interface Category {
+  id: string
+  name: string
+  icon: string
+  count: number
+  color: string
+  gradient: string
 }
 
 export interface Lecture {
-  id: string;
-  title: Translation;
-  audioUrl: string;
-  duration: number; // in seconds
-  bookId: string;
-  bookName: Translation;
-  scholarId: string;
-  scholarName: Translation;
-  likesCount: number;
-  isFeatured?: boolean;
-}
-
-export interface Book {
-  id: string;
-  title: Translation;
-  description: Translation;
-  scholarId: string;
-  image: string;
+  id: number
+  title: string
+  scholar: string
+  scholarId?: string
+  bookId?: string
+  duration: string
+  icon: string
+  categoryId: string
+  src: string
+  cover?: string
+  coverImage?: string
+  tags?: string[]
+  seriesId?: string
+  lessonNumber?: number
+  fileType?: string
+  fileSize?: number
+  transcript?: string
+  notes?: string
+  summary?: string
+  description?: string
+  audioUrl?: string
 }
 
 export interface Scholar {
-  id: string;
-  name: Translation;
-  bio: Translation;
-  image: string;
+  id: string
+  name: string
+  nameAr: string
+  role: string
+  description: string
+  imageUrl: string
+  lessonsCount: number
+  tags: string[]
+  sourceUrl: string
+  imageCredit: string
 }
 
-export const SCHOLARS: Scholar[] = [
-  {
-    id: "albani",
-    name: {
-      ru: "Шейх Мухаммад Насируддин аль-Албани",
-      en: "Sheikh Muhammad Nasiruddin al-Albani",
-      tg: "Шайх Муҳаммад Носируддин ал-Албонӣ",
-    },
-    bio: {
-      ru: "Выдающийся ученый-мухаддис двадцатого века, посвятивший жизнь очищению Сунны.",
-      en: "The prominent Hadith scholar of the 20th century, dedicated to purifying the Sunnah.",
-      tg: "Муҳаддиси бузурги асри бистум, ки ҳаёти худро ба поксозии Суннат бахшидааст.",
-    },
-    image: "https://images.unsplash.com/photo-1576085898312-92e1740139dd?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: "uthaymeen",
-    name: {
-      ru: "Шейх Мухаммад ибн Салих аль-Усеймин",
-      en: "Sheikh Muhammad ibn Salih al-Uthaymeen",
-      tg: "Шайх Муҳаммад ибни Солеҳ ал-Усаймин",
-    },
-    bio: {
-      ru: "Великий факъих и толкователь Корана, известный своим легким и доступным методом объяснения.",
-      en: "A great jurist and Quran commentator, known for his clear and accessible teaching methodology.",
-      tg: "Фақеҳ ва муфассири бузург, ки бо усули осон ва фаҳмои таълими худ машҳур аст.",
-    },
-    image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=400",
-  },
-  {
-    id: "fawzan",
-    name: {
-      ru: "Шейх Салих ибн Фавзан аль-Фавзан",
-      en: "Sheikh Salih ibn Fawzan al-Fawzan",
-      tg: "Шайх Солеҳ ибни Фавзон ал-Фовзон",
-    },
-    bio: {
-      ru: "Член Комитета больших ученых Саудовской Аравии, ведущий специалист по исламскому вероучению.",
-      en: "Member of the Council of Senior Scholars of Saudi Arabia, leading authority in Aqeedah.",
-      tg: "Узви Кумитаи уламои кибори Арабистони Саудӣ, мутахассиси пешбари ақидаи исломӣ.",
-    },
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400",
-  },
-];
-
-export const BOOKS: Book[] = [
-  {
-    id: "sifat-salat",
-    scholarId: "albani",
-    title: {
-      ru: "Описание молитвы Пророка ﷺ",
-      en: "The Prophet's ﷺ Prayer Described",
-      tg: "Сифати намози Паёмбар ﷺ",
-    },
-    description: {
-      ru: "Подробное руководство по совершению молитвы в соответствии с достоверной Сунной.",
-      en: "A comprehensive guide to performing prayer in accordance with the authentic Sunnah.",
-      tg: "Дастури муфассал барои адои намоз мувофиқи Суннати саҳеҳ.",
-    },
-    image: "https://images.unsplash.com/photo-1584282479212-07cfb1965f32?auto=format&fit=crop&q=80&w=600",
-  },
-  {
-    id: "aqeedah-wasitiyyah",
-    scholarId: "uthaymeen",
-    title: {
-      ru: "Комментарий к Аль-Акыде аль-Васития",
-      en: "Explanation of Al-Aqeedah al-Wasitiyyah",
-      tg: "Шарҳи Ақидаи Восития",
-    },
-    description: {
-      ru: "Разъяснение основ исламского вероучения приверженцев Сунны и единой общины.",
-      en: "Explanation of the fundamentals of Islamic creed of Ahlus-Sunnah wal-Jama'ah.",
-      tg: "Баёни асосҳои эътиқоди исломии Аҳли Суннат ва Ҷамоат.",
-    },
-    image: "https://images.unsplash.com/photo-1590073844006-33379778ae09?auto=format&fit=crop&q=80&w=600",
-  },
-  {
-    id: "kitab-tawheed",
-    scholarId: "fawzan",
-    title: {
-      ru: "Книга Единобожия",
-      en: "The Book of Tawheed",
-      tg: "Китоби Тавҳид",
-    },
-    description: {
-      ru: "Фундаментальный труд, разъясняющий суть Единобожия и предостерегающий от многобожия.",
-      en: "A fundamental work explaining the essence of Tawheed and warning against Shirk.",
-      tg: "Асари бунёдӣ, ки моҳияти Тавҳидро шарҳ дода, аз ширк огоҳ мекунад.",
-    },
-    image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600",
-  },
-];
-
-export const LECTURES: Lecture[] = [
-  {
-    id: "albani-salat-1",
-    scholarId: "albani",
-    bookId: "sifat-salat",
-    title: {
-      ru: "Урок 1: Введение и важность следования Сунне",
-      en: "Lesson 1: Introduction and Importance of Following the Sunnah",
-      tg: "Дарси 1: Муқаддима ва аҳамияти пайравии Суннат",
-    },
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-    duration: 372,
-    likesCount: 145,
-    isFeatured: true,
-    scholarName: {
-      ru: "Шейх Аль-Албани",
-      en: "Sheikh Al-Albani",
-      tg: "Шайх Албонӣ",
-    },
-    bookName: {
-      ru: "Описание молитвы Пророка ﷺ",
-      en: "The Prophet's ﷺ Prayer Described",
-      tg: "Сифати намози Паёмбар ﷺ",
-    },
-  },
-  {
-    id: "albani-salat-2",
-    scholarId: "albani",
-    bookId: "sifat-salat",
-    title: {
-      ru: "Урок 2: Намерение (Ният) и обращение к Кыбле",
-      en: "Lesson 2: Intention (Niyyah) and Facing the Qiblah",
-      tg: "Дарси 2: Ният ва рӯ ба Қибла кардан",
-    },
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-    duration: 423,
-    likesCount: 112,
-    isFeatured: true,
-    scholarName: {
-      ru: "Шейх Аль-Албани",
-      en: "Sheikh Al-Albani",
-      tg: "Шайх Албонӣ",
-    },
-    bookName: {
-      ru: "Описание молитвы Пророка ﷺ",
-      en: "The Prophet's ﷺ Prayer Described",
-      tg: "Сифати намози Паёмбар ﷺ",
-    },
-  },
-  {
-    id: "albani-salat-3",
-    scholarId: "albani",
-    bookId: "sifat-salat",
-    title: {
-      ru: "Урок 3: Такбиратуль-Ихрам и поднятие рук",
-      en: "Lesson 3: Takbeerat-ul-Ihram and Raising the Hands",
-      tg: "Дарси 3: Такбиратул-Иҳром ва бардоштани дастҳо",
-    },
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-    duration: 312,
-    likesCount: 98,
-    isFeatured: false,
-    scholarName: {
-      ru: "Шейх Аль-Албани",
-      en: "Sheikh Al-Albani",
-      tg: "Шайх Албонӣ",
-    },
-    bookName: {
-      ru: "Описание молитвы Пророка ﷺ",
-      en: "The Prophet's ﷺ Prayer Described",
-      tg: "Сифати намози Паёмбар ﷺ",
-    },
-  },
-  {
-    id: "uthaymeen-wasitiyyah-1",
-    scholarId: "uthaymeen",
-    bookId: "aqeedah-wasitiyyah",
-    title: {
-      ru: "Урок 1: Введение в Акиду Ахлю Сунна валь Джамаа",
-      en: "Lesson 1: Introduction to Aqeedah of Ahlus-Sunnah wal-Jama'ah",
-      tg: "Дарси 1: Муқаддима ба Ақидаи Аҳли Суннат ва Ҷамоат",
-    },
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-    duration: 502,
-    likesCount: 231,
-    isFeatured: true,
-    scholarName: {
-      ru: "Шейх Ибн Усеймин",
-      en: "Sheikh Ibn Uthaymeen",
-      tg: "Шайх Ибни Усаймин",
-    },
-    bookName: {
-      ru: "Комментарий к Аль-Акыде аль-Васития",
-      en: "Explanation of Al-Aqeedah al-Wasitiyyah",
-      tg: "Шарҳи Ақидаи Восития",
-    },
-  },
-  {
-    id: "uthaymeen-wasitiyyah-2",
-    scholarId: "uthaymeen",
-    bookId: "aqeedah-wasitiyyah",
-    title: {
-      ru: "Урок 2: Имена и Атрибуты Аллаха",
-      en: "Lesson 2: Names and Attributes of Allah",
-      tg: "Дарси 2: Номҳо ва Сифатҳои Аллоҳ",
-    },
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
-    duration: 485,
-    likesCount: 198,
-    isFeatured: true,
-    scholarName: {
-      ru: "Шейх Ибн Усеймин",
-      en: "Sheikh Ibn Uthaymeen",
-      tg: "Шайх Ибни Усаймин",
-    },
-    bookName: {
-      ru: "Комментарий к Аль-Акыде аль-Васития",
-      en: "Explanation of Al-Aqeedah al-Wasitiyyah",
-      tg: "Шарҳи Ақидаи Восития",
-    },
-  },
-  {
-    id: "fawzan-tawheed-1",
-    scholarId: "fawzan",
-    bookId: "kitab-tawheed",
-    title: {
-      ru: "Урок 1: Определение Тавхида и его виды",
-      en: "Lesson 1: Definition of Tawheed and Its Types",
-      tg: "Дарси 1: Таърифи Тавҳид ва намудҳои он",
-    },
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
-    duration: 540,
-    likesCount: 320,
-    isFeatured: true,
-    scholarName: {
-      ru: "Шейх Салих Аль-Фозан",
-      en: "Sheikh Salih Al-Fawzan",
-      tg: "Шайх Солеҳ Ал-Фавзон",
-    },
-    bookName: {
-      ru: "Книга Единобожия",
-      en: "The Book of Tawheed",
-      tg: "Китоби Тавҳид",
-    },
-  },
-  {
-    id: "fawzan-tawheed-2",
-    scholarId: "fawzan",
-    bookId: "kitab-tawheed",
-    title: {
-      ru: "Урок 2: Важность Единобожия в жизни верующего",
-      en: "Lesson 2: Importance of Tawheed in a Believer's Life",
-      tg: "Дарси 2: Аҳамияти Тавҳид дар ҳаёти мӯъмин",
-    },
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",
-    duration: 495,
-    likesCount: 278,
-    isFeatured: false,
-    scholarName: {
-      ru: "Шейх Салих Аль-Фозан",
-      en: "Sheikh Salih Al-Fawzan",
-      tg: "Шайх Солеҳ Ал-Фавзон",
-    },
-    bookName: {
-      ru: "Книга Единобожия",
-      en: "The Book of Tawheed",
-      tg: "Китоби Тавҳид",
-    },
-  },
-];
-
-export const THEMES = [
-  { id: "dark-green", name: { ru: "Темно-зеленый", en: "Dark Green", tg: "Сабзи торик" } },
-  { id: "olive", name: { ru: "Оливковый", en: "Olive", tg: "Зайтӣ" } },
-  { id: "sky-marble", name: { ru: "Небесный мрамор", en: "Sky Marble", tg: "Мармари осмонӣ" } },
-  { id: "gold-qibla", name: { ru: "Золотая Кыбла", en: "Gold Qibla", tg: "Қиблаи тиллоӣ" } },
-  { id: "rose", name: { ru: "Роза", en: "Rose", tg: "Гулшанӣ" } },
-  { id: "lilac", name: { ru: "Сирень", en: "Lilac", tg: "Сиранг" } },
-  { id: "ivory", name: { ru: "Слоновая кость", en: "Ivory", tg: "Устухонӣ" } },
-  { id: "mint", name: { ru: "Мята", en: "Mint", tg: "Пудинагӣ" } },
-  { id: "amoled", name: { ru: "AMOLED черный", en: "AMOLED Black", tg: "Сиёҳи соф" } },
-  { id: "editorial", name: { ru: "Редакционный", en: "Editorial", tg: "Нашриётӣ" } },
-  { id: "nature", name: { ru: "Природа", en: "Nature", tg: "Табиат" } },
-];
-
-// Functions for admin panel compatibility
 export interface ScholarBook {
   id: string
   scholarId: string
@@ -322,225 +55,121 @@ export interface ScholarBook {
   order: number
 }
 
-export function getScholarBooks(): ScholarBook[] {
-  return [];
+export interface Series {
+  id: string
+  name: string
+  description: string
+  cover?: string
+  scholarId?: string
+  tags?: string[]
 }
 
-export function saveScholarBooks(books: ScholarBook[]): void {
-  // Not used in this version
+export interface Playlist {
+  id: string
+  name: string
+  description: string
+  lectures: Lecture[]
+  cover?: string
+}
+
+export const categories: Category[] = [
+  { id: 'lectures', name: 'Лекции', icon: '📚', count: 3, color: '#1b4332', gradient: 'linear-gradient(135deg, #1b4332, #2d6a4f)' },
+  { id: 'series', name: 'Серии', icon: '📖', count: 0, color: '#3c096c', gradient: 'linear-gradient(135deg, #3c096c, #7b2cbf)' },
+  { id: 'reminders', name: 'Напоминания', icon: '💡', count: 0, color: '#bc6c25', gradient: 'linear-gradient(135deg, #606c38, #bc6c25)' },
+]
+
+// Load from localStorage override or use default
+function loadFromStorage<T>(key: string, defaultData: T): T {
+  try {
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      return JSON.parse(stored) as T
+    }
+  } catch {}
+  return defaultData
 }
 
 export function getLectures(): Lecture[] {
-  const saved = localStorage.getItem('salaf_custom_lectures');
-  return saved ? JSON.parse(saved) : LECTURES;
+  return loadFromStorage<Lecture[]>('salaf-admin-lectures', defaultLectures)
 }
 
 export function getScholars(): Scholar[] {
-  return SCHOLARS;
+  return loadFromStorage<Scholar[]>('salaf-admin-scholars', defaultScholars)
 }
 
-export function getSeries(): any[] {
-  return [];
+export function getSeries(): Series[] {
+  return loadFromStorage<Series[]>('salaf-admin-series', defaultSeries)
+}
+
+export function getScholarBooks(): ScholarBook[] {
+  return loadFromStorage<ScholarBook[]>('salaf-admin-scholar-books', defaultScholarBooks)
 }
 
 export function saveLectures(lectures: Lecture[]): void {
-  localStorage.setItem('salaf_custom_lectures', JSON.stringify(lectures));
-  window.dispatchEvent(new Event('salaf-audio-data-updated'));
+  localStorage.setItem('salaf-admin-lectures', JSON.stringify(lectures))
+  window.dispatchEvent(new Event('salaf-audio-data-updated'))
 }
 
 export function saveScholars(scholars: Scholar[]): void {
-  // Scholars are static in this version
+  localStorage.setItem('salaf-admin-scholars', JSON.stringify(scholars))
+  window.dispatchEvent(new Event('salaf-audio-data-updated'))
 }
 
-export function saveSeries(series: any[]): void {
-  // Series not used in this version
+export function saveSeries(series: Series[]): void {
+  localStorage.setItem('salaf-admin-series', JSON.stringify(series))
+  window.dispatchEvent(new Event('salaf-audio-data-updated'))
 }
 
-export const i18n = {
-  ru: {
-    title: "Salaf Library Audio",
-    tagline: "Слушайте лекции авторитетных исламских ученых на русском, английском и таджикском языках.",
-    scholars: "Ученые",
-    books: "Книги",
-    lectures: "Лекции",
-    featured: "Рекомендуемые",
-    search: "Поиск",
-    favorites: "Избранное",
-    profile: "Профиль",
-    library: "Библиотека",
-    admin: "Админ-панель",
-    allScholars: "Все ученые",
-    allBooks: "Все книги",
-    allLectures: "Все лекции",
-    playing: "Воспроизведение",
-    paused: "Пауза",
-    queue: "Очередь воспроизведения",
-    likes: "Лайки",
-    bookmarks: "Закладки",
-    listenLater: "Слушать позже",
-    addBookmark: "Добавить в закладки",
-    removeBookmark: "Удалить из закладок",
-    addListenLater: "Слушать позже",
-    removeListenLater: "Удалено из Слушать позже",
-    speed: "Скорость",
-    repeatAB: "Повтор A-B",
-    repeatA: "Точка A",
-    repeatB: "Точка B",
-    clearAB: "Сбросить A-B",
-    activeAB: "Повтор активен",
-    theme: "Тема оформления",
-    language: "Язык интерфейса",
-    searchPlaceholder: "Искать лекции, ученых или книги...",
-    noResults: "Ничего не найдено",
-    noFavorites: "У вас пока нет избранных лекций",
-    noBookmarks: "Нет закладок",
-    noListenLater: "Список 'Слушать позже' пуст",
-    adminTitle: "Управление аудио-библиотекой",
-    addLecture: "Добавить лекцию",
-    lectureTitleRu: "Название (RU)",
-    lectureTitleEn: "Название (EN)",
-    lectureTitleTg: "Название (TG)",
-    audioUrl: "Ссылка на аудио (MP3)",
-    duration: "Длительность (сек)",
-    save: "Сохранить",
-    delete: "Удалить",
-    actions: "Действия",
-    home: "Главная",
-    nowPlaying: "Сейчас играет",
-    back: "Назад",
-    statistics: "Статистика",
-    statsLectures: "Всего лекций",
-    statsDuration: "Общее время",
-    statsScholars: "Ученых в базе",
-    statsBooks: "Книг в базе",
-    userProfile: "Профиль пользователя",
-    favoritesTab: "Понравилось",
-    bookmarksTab: "Закладки",
-    listenLaterTab: "Слушать позже",
-    clearQueue: "Очистить очередь",
+export function saveScholarBooks(books: ScholarBook[]): void {
+  localStorage.setItem('salaf-admin-scholar-books', JSON.stringify(books))
+  window.dispatchEvent(new Event('salaf-audio-data-updated'))
+}
+
+const defaultScholars: Scholar[] = []
+
+const defaultScholarBooks: ScholarBook[] = []
+
+const defaultSeries: Series[] = []
+
+const defaultLectures: Lecture[] = [
+  {
+    id: 1,
+    title: 'Открытие Палестины — Часть 1',
+    scholar: 'Лектор',
+    duration: '0:00',
+    icon: '📚',
+    categoryId: 'lectures',
+    src: '/audio/01 Открытие Палестины.mp3',
+    cover: '',
+    tags: ['сيرة', 'история'],
   },
-  en: {
-    title: "Salaf Library Audio",
-    tagline: "Listen to lectures from trusted Islamic scholars in Russian, English, and Tajik.",
-    scholars: "Scholars",
-    books: "Books",
-    lectures: "Lectures",
-    featured: "Featured",
-    search: "Search",
-    favorites: "Favorites",
-    profile: "Profile",
-    library: "Library",
-    admin: "Admin Panel",
-    allScholars: "All Scholars",
-    allBooks: "All Books",
-    allLectures: "All Lectures",
-    playing: "Playing",
-    paused: "Paused",
-    queue: "Up Next",
-    likes: "Likes",
-    bookmarks: "Bookmarks",
-    listenLater: "Listen Later",
-    addBookmark: "Add to Bookmarks",
-    removeBookmark: "Remove Bookmark",
-    addListenLater: "Listen Later",
-    removeListenLater: "Removed from Listen Later",
-    speed: "Speed",
-    repeatAB: "A-B Repeat",
-    repeatA: "Point A",
-    repeatB: "Point B",
-    clearAB: "Reset A-B",
-    activeAB: "Looping A-B",
-    theme: "Theme",
-    language: "Language",
-    searchPlaceholder: "Search lectures, scholars or books...",
-    noResults: "No results found",
-    noFavorites: "You don't have any favorite lectures yet",
-    noBookmarks: "No bookmarks yet",
-    noListenLater: "Listen Later list is empty",
-    adminTitle: "Audio Library Administration",
-    addLecture: "Add Lecture",
-    lectureTitleRu: "Title (RU)",
-    lectureTitleEn: "Title (EN)",
-    lectureTitleTg: "Title (TG)",
-    audioUrl: "Audio Link (MP3)",
-    duration: "Duration (sec)",
-    save: "Save",
-    delete: "Delete",
-    actions: "Actions",
-    home: "Home",
-    nowPlaying: "Now Playing",
-    back: "Back",
-    statistics: "Statistics",
-    statsLectures: "Total Lectures",
-    statsDuration: "Total Playtime",
-    statsScholars: "Scholars Available",
-    statsBooks: "Books Cataloged",
-    userProfile: "User Profile",
-    favoritesTab: "Likes",
-    bookmarksTab: "Bookmarks",
-    listenLaterTab: "Listen Later",
-    clearQueue: "Clear Queue",
+  {
+    id: 2,
+    title: 'Открытие Палестины — Часть 2',
+    scholar: 'Лектор',
+    duration: '0:00',
+    icon: '📚',
+    categoryId: 'lectures',
+    src: '/audio/02 Открытие Палестины.mp3',
+    cover: '',
+    tags: ['сيرة', 'история'],
   },
-  tg: {
-    title: "Salaf Library Audio",
-    tagline: "Маърифати садоии исломӣ: лексияҳои уламои боэътимод бо забонҳои русӣ, англисӣ ва тоҷикӣ.",
-    scholars: "Уламо",
-    books: "Китобҳо",
-    lectures: "Дарсҳо",
-    featured: "Тавсияшуда",
-    search: "Ҷустуҷӯ",
-    favorites: "Дӯстдоштаҳо",
-    profile: "Профил",
-    library: "Китобхона",
-    admin: "Админ-панел",
-    allScholars: "Ҳамаи уламо",
-    allBooks: "Ҳамаи китобҳо",
-    allLectures: "Ҳамаи дарсҳо",
-    playing: "Дар ҳоли пахш",
-    paused: "Таваққуф",
-    queue: "Навбати пахш",
-    likes: "Лайкҳо",
-    bookmarks: "Хатбаракҳо",
-    listenLater: "Баъдтар бишнав",
-    addBookmark: "Илова ба хатбаракҳо",
-    removeBookmark: "Ҳазфи хатбарак",
-    addListenLater: "Баъдтар бишнав",
-    removeListenLater: "Аз баъдтар бишнав ҳазф шуд",
-    speed: "Суръат",
-    repeatAB: "Такрори A-B",
-    repeatA: "Нуқтаи A",
-    repeatB: "Нуқтаи B",
-    clearAB: "Тоза кардани A-B",
-    activeAB: "Такрори A-B фаъол",
-    theme: "Мавзӯъ",
-    language: "Забони интерфейс",
-    searchPlaceholder: "Ҷустуҷӯи дарсҳо, уламо ё китобҳо...",
-    noResults: "Ҳеҷ чиз ёфт нашуд",
-    noFavorites: "Шумо ҳанӯз дарси дӯстдошта надоред",
-    noBookmarks: "Ҳеҷ хатбарак нест",
-    noListenLater: "Рӯйхати 'Баъдтар бишнав' холӣ аст",
-    adminTitle: "Идоракунии Китобхонаи Садоӣ",
-    addLecture: "Иловаи дарс",
-    lectureTitleRu: "Ном (RU)",
-    lectureTitleEn: "Ном (EN)",
-    lectureTitleTg: "Ном (TG)",
-    audioUrl: "Пайванди аудио (MP3)",
-    duration: "Давомнокӣ (сония)",
-    save: "Захира",
-    delete: "Ҳазф",
-    actions: "Амалҳо",
-    home: "Асосӣ",
-    nowPlaying: "Ҳозир мехонад",
-    back: "Ба қафо",
-    statistics: "Омор",
-    statsLectures: "Ҳамагӣ дарсҳо",
-    statsDuration: "Вақти умумӣ",
-    statsScholars: "Уламо дар база",
-    statsBooks: "Китобҳо дар база",
-    userProfile: "Профили корбар",
-    favoritesTab: "Лайкҳо",
-    bookmarksTab: "Хатбаракҳо",
-    listenLaterTab: "Баъдтар бишнав",
-    clearQueue: "Тоза кардани навбат",
+  {
+    id: 3,
+    title: 'Открытие Палестины — Часть 3',
+    scholar: 'Лектор',
+    duration: '0:00',
+    icon: '📚',
+    categoryId: 'lectures',
+    src: '/audio/03 Открытие Палестины.mp3',
+    cover: '',
+    tags: ['сيرة', 'история'],
   },
-};
+]
+
+export const lectures = getLectures()
+export const scholars = getScholars()
+export const series = getSeries()
+
+// Legacy alias
+export const audioData = lectures
