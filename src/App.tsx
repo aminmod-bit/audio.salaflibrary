@@ -102,7 +102,7 @@ export default function App() {
   const [queueOpen, setQueueOpen] = useState(false)
   const [queue, setQueue] = useState<Lecture[]>([])
   const [nowPlaying, setNowPlaying] = useState(false)
-  const [liked, setLiked] = useState<Set<string | number>>(new Set())
+  const [liked, setLiked] = useState<Set<any>>(new Set())
   const [npView, setNpView] = useState<'main'|'lyrics'|'eq'>('main')
   const [ctxMenu, setCtxMenu] = useState<{x:number;y:number}|null>(null)
   const [eqPreset, setEqPreset] = useState('Без обработки')
@@ -131,10 +131,10 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState<any[]>(() => {
     try { return JSON.parse(localStorage.getItem('salaf-audio-bookmarks') || '[]') } catch { return [] }
   })
-  const [listenLater, setListenLater] = useState<number[]>(() => {
+  const [listenLater, setListenLater] = useState<any[]>(() => {
     try { return JSON.parse(localStorage.getItem('salaf-audio-listen-later') || '[]') } catch { return [] }
   })
-  const [completedLectures, setCompletedLectures] = useState<Set<number>>(() => {
+  const [completedLectures, setCompletedLectures] = useState<Set<any>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem('salaf-audio-completed') || '[]')) } catch { return new Set() }
   })
   const [autoplayNext, setAutoplayNext] = useState(() => localStorage.getItem('salaf-audio-autoplay') === 'true')
@@ -218,7 +218,7 @@ export default function App() {
   const getBookmarksForLecture = (lessonId: number) => bookmarks.filter(b => b.lessonId === lessonId)
 
   // Listen later helpers
-  const toggleListenLater = (lessonId: number) => {
+  const toggleListenLater = (lessonId: any) => {
     const updated = listenLater.includes(lessonId)
       ? listenLater.filter(id => id !== lessonId)
       : [...listenLater, lessonId]
@@ -227,13 +227,13 @@ export default function App() {
   }
 
   // Completed helpers
-  const toggleCompleted = (lessonId: number) => {
+  const toggleCompleted = (lessonId: any) => {
     const updated = new Set(completedLectures)
     if (updated.has(lessonId)) { updated.delete(lessonId) } else { updated.add(lessonId) }
     setCompletedLectures(updated)
     localStorage.setItem('salaf-audio-completed', JSON.stringify([...updated]))
   }
-  const isCompleted = (lessonId: number) => completedLectures.has(lessonId)
+  const isCompleted = (lessonId: any) => completedLectures.has(lessonId)
 
   // Autoplay next
   const toggleAutoplay = () => {
@@ -356,7 +356,7 @@ export default function App() {
     ? lecturesData.filter(l => {
         const q = searchQuery.toLowerCase()
         return l.title.toLowerCase().includes(q)
-          || l.scholar.toLowerCase().includes(q)
+          || l.scholar || "".toLowerCase().includes(q)
           || (l.tags || []).some(t => t.toLowerCase().includes(q))
           || (l.transcript || '').toLowerCase().includes(q)
           || (l.notes || '').toLowerCase().includes(q)
@@ -384,7 +384,7 @@ export default function App() {
     if (idx >= 0) setQueue(listToUse.slice(idx))
     // Load and play audio
     if (audioRef.current) {
-      audioRef.current.src = lecture.src
+      audioRef.current.src = lecture.src || ""
       audioRef.current.load()
       audioRef.current.play().catch(() => {})
     }
@@ -405,7 +405,7 @@ export default function App() {
     const idx = queue.findIndex(t => t.id === currentLecture.id)
     if (idx < queue.length - 1) {
       const n = queue[idx+1]; setCurrentLecture(n); setIsPlaying(true); setProgress(0); setCurrentTime(0)
-      if (audioRef.current) { audioRef.current.src = n.src; audioRef.current.load(); audioRef.current.play().catch(() => {}) }
+      if (audioRef.current) { audioRef.current.src = n.src || ""; audioRef.current.load(); audioRef.current.play().catch(() => {}) }
     }
   }, [currentLecture, queue, autoplayNext, completedLectures])
 
@@ -414,7 +414,7 @@ export default function App() {
     const idx = queue.findIndex(t => t.id === currentLecture.id)
     if (idx > 0) {
       const p = queue[idx-1]; setCurrentLecture(p); setIsPlaying(true); setProgress(0); setCurrentTime(0)
-      if (audioRef.current) { audioRef.current.src = p.src; audioRef.current.load(); audioRef.current.play().catch(() => {}) }
+      if (audioRef.current) { audioRef.current.src = p.src || ""; audioRef.current.load(); audioRef.current.play().catch(() => {}) }
     }
   }, [currentLecture, queue])
 
@@ -524,7 +524,7 @@ export default function App() {
   const eqFreqs = ['31','62','125','250','500','1k','2k','4k','8k','16k']
 
   /* ─── Remove from queue ─── */
-  const removeFromQueue = (id: number) => setQueue(q => q.filter(t => t.id !== id))
+  const removeFromQueue = (id: any) => setQueue(q => q.filter(t => t.id !== id))
 
   return (
     <div className="app">
@@ -801,7 +801,7 @@ export default function App() {
                               <div style={{width:40,height:40,borderRadius:8,background:trackBg(l),display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{l.icon}</div>
                               <div style={{flex:1,minWidth:0}}>
                                 <div style={{fontSize:14,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.title}</div>
-                                <div style={{fontSize:12,color:'var(--text3)'}}>{l.scholar || 'Лектор'} · {l.duration} {l.seriesId ? `· ${lecturesData.find(lec=>lec.id===l.id)?.seriesId || ''}` : ''}</div>
+                                <div style={{fontSize:12,color:'var(--text3)'}}>{l.scholar || "" || 'Лектор'} · {l.duration} {l.seriesId ? `· ${lecturesData.find(lec=>lec.id===l.id)?.seriesId || ''}` : ''}</div>
                               </div>
                               <div style={{display:'flex',gap:4}}>
                                 <button onClick={(e) => { e.stopPropagation(); toggleListenLater(l.id) }}

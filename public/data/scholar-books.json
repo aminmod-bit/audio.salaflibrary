@@ -1,0 +1,56 @@
+[
+  {
+    "id": "book-palestine",
+    "scholarId": "abu-jaafar",
+    "title": "Открытие Палестины",
+    "titleAr": "فتح فلسطين",
+    "description": "Серия лекций об истории Палестины и её значении для мусульман.",
+    "coverImage": "",
+    "order": 1
+  },
+  {
+    "id": "book-aqeedah-basics",
+    "scholarId": "abu-jaafar",
+    "title": "Основы акыды",
+    "titleAr": "أسس العقيدة",
+    "description": "Введение в исламское вероучение для начинающих.",
+    "coverImage": "",
+    "order": 2
+  },
+  {
+    "id": "book-three-fundamentals",
+    "scholarId": "ibn-uthaymeen",
+    "title": "Три основы",
+    "titleAr": "القواعد الثلاث",
+    "description": "Комментарий к трактату «Три основы» имама Мухаммада ибн Абделя-Ваххаба.",
+    "coverImage": "",
+    "order": 1
+  },
+  {
+    "id": "book-kitab-tawheed",
+    "scholarId": "ibn-uthaymeen",
+    "title": "Китаб ат-Таухид",
+    "titleAr": "كتاب التوحيد",
+    "description": "Комментарий к «Книге единобожия».",
+    "coverImage": "",
+    "order": 2
+  },
+  {
+    "id": "book-aqeedah",
+    "scholarId": "al-fawzan",
+    "title": "Акыда",
+    "titleAr": "العقيدة",
+    "description": "Курс по исламскому вероучению.",
+    "coverImage": "",
+    "order": 1
+  },
+  {
+    "id": "book-fiqh",
+    "scholarId": "al-fawzan",
+    "title": "Фикх",
+    "titleAr": "الفقه",
+    "description": "Основы исламского права для начинающих.",
+    "coverImage": "",
+    "order": 2
+  }
+]
